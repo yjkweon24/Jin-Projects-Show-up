@@ -1,1 +1,1 @@
-# Conjoint
+Bioinformatics BINF 531
