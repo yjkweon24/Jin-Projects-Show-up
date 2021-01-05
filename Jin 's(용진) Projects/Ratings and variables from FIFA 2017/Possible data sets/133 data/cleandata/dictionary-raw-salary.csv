@@ -1,0 +1,8 @@
+"","name","description","explanation"
+"1","salaries.Rk","the ranking of salary for each player in this team","this number shows the ranking for this specific player
+                  in this team"
+"2","salaries.Player","the name of player corresponding to this salary
+                  in this team","this is the name of the player who earns this salary in
+                 this team"
+"3","salaries.Salary","the salary of this player in this team","this is the actual salary the player earns in this team,
+                 unit is U.S. dollars"

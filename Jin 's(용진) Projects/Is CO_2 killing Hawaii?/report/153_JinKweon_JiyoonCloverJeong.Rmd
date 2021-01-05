@@ -1,0 +1,963 @@
+---
+title: "FINAL PROJECT"
+author: "Jin Kweon and Clover Jiyoon Jeong"
+date: "17/04/2018"
+output:
+  pdf_document: default
+  html_document: default
+header-includes: \usepackage{graphicx} \usepackage{float} \usepackage{wrapfig} \usepackage{color}
+geometry: left = 0.45in, right = 0.45in, top = 0.6in, bottom = 0.65in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(knitr)
+```
+
+##**Goal**
+
+First goal is to find the right model for our dataset, and pitch that Hawaii is under threat by huge amounts of Carbon Dioxide. 
+
+#**Motivation & Introduction**  
+
+**- Explain the motivation for studying the particular dataset of interest. What do we care about the dataset?**
+
+Hawaii is a beautiful place/island (one of the places we would really like/wish to visit). However, we found that carbon dioxide emission rates in Hawaii has been significantly increasing, and we thought that it would be great if we could back up that argument with time series technique/skills and knoweldge to tell people how serious the problems are.
+
+**- Why is the dataset interesting? The purpose of the analysis?**
+
+As you might already find out, pollusion is getting worse and worse. As we are really interested in environmental science, we hope to pitch out that one of the most popular visiting places, Hawaii is under threat by seious pollusion. After doing analysis, we hope to contribute for saving the Earth.
+
+
+**- Elaborate on the background of the problem/dataset. Where does the dataset come from? How are the data collected?** 
+
+First, the data sets is collected through January 1959 to December 1990 by monthly. The dataset is collected by Rachel Passmore (Royal Society Teacher Fellow, Department of Statistics, University of Auckland), and they collected the data by conducting tests of CO2 (with the unit of parts per million - ppm).
+
+Later, we need to divide into training and testing sets (leave 12 data out) for forecasting. We decided to leave 12 data out, because a year has 12 months, and it is more reasonable for us to forecast the entire year.
+
+#**Outline**
+
+Here is our rough draft for our project:
+
+1. Make descriptions of the data: what it is and where it came from 
+2. Describe what questions we are addressing
+3. Perform EDA
+4. Plot data
+- Is	there	a	trend and seasonality? 
+- Are	there	any	cyclical patterns? 
+- Are	there	any	outliers? 
+- Chasing	stationarity? 
+5. Scatterplot matrix
+6. Split into train and test sets
+7. plot ACF, PACF, EACF
+And, check sarima$ttable p-value to see how significant they are
+8. Build and estimate parameters with Yule-Walker 
+9. Model diagnostics 
+10. Compare models with AIC, AICC, BIC, etc
+11. Forecasting
+12. Spectral Analysis if seasonal trend is not obvious and to get frequency 
+- Identify key frequencies and cycles (analyze the seasonal behaviors)
+- Regression terms cosine and sines
+- Spectral densities and Periodogram 
+- For periodogram, try different window sizes, kernels, somoothing parameters, tapers, etc and get the best looking ones
+- Smoothings
+- Confidence interval of spectral density 
+- Check peaks are significant
+
+#**Preprocessing and Exploratory Data Analysis** 
+
+This EDA was performed before any analysis, to learn about the data. Our team spent a lot of time on this part. 
+
+#####1. Find missing value/NA 
+
+The data had no missing values. We used the function called "anyNA" to see whether the is any NA/missing values.
+
+#####2. Units (check whether it is equally spaced), observation period/duration
+
+The data is equally spaced and the data is collected monthly, from January 1959 till December 1990.
+
+#####3. Handling outliers/weird data
+
+For these kind of continuous variables, we did not know whether the so called "outlying datas" were bad (wrongly inputed) or not. So, our logical thoughts were really important, and we relied on it, here. We looked at boxplots and density plots to help us make decisions whether we needed to remove outlying observations or not.
+
+First of all, we wanted to say that we printed out the lists of outlying datas we got from usual mathematical way (we usually say outliers were the observatoins above or below Q1/Q3 $\pm$ IQR * 1.5); however again, since we did not know the distribution assumption, we were going to approach this problem with our logics.
+
+By plotting our time series plot, boxplots, and density plots, we decided that there is no outlying observation. (no additive outlier or level shift) 
+
+Also, just to be extra safe, we used "tso" and "tsoutliers" functions, and we could conclude that there is no outlying data. (did similarly as chapter 11.1 - 11.2 from Cryer and Chan did)
+
+#####5. Do str and summary to find out data structures and fix if necessary
+
+When we read the structure and summary, nothing looked abnormal, so we did not take action (or modifying data in other way). The minimum of difference is 313.2, median is 330.6, mean is 332.2, sample standard deviaion is 11.76, and max is 356.9.
+
+#**Methodology & Data Analysis**
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/1.png}
+     \caption{Original plot for Hawaii CO2}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/5.png}
+     \caption{More detrendings added}
+   \end{minipage}\hfill  
+\end{figure}
+
+We plotted our original data first, **(Fig 1)** and in general, and we could easily find out that there is a very consistent and obvious seasonal pattern with polynomial trend. (Our data does not seem follow a linear model, as the line does not pass through the middle of the data well)
+
+##1. Check seasonality or trend
+
+When we investigate the data, there is a obvious pattern each year that CO2 is increasing at the beginnin of the year upto May, decreasing from May to September/October, and later increasing again at end of the year. **(appendix Fig 17)** So, we end up saying that there will be an overall increasing trend and seasonal effect. Also, it became more obvious when we performed Dickey-Fuller Test, as the p-value of the test was 0.3964.
+
+To remove the seasonal trend, we take seasonal difference of differencing lag of 12, and then, it looked pretty stationary (and Dickey-Fuller test also back this up); however, we found that as we differenced more, we could make the model more stationary. So, we ran the for-loop for differencing lag of 1 to 11, and found that when diffencing an additional 1st difference operation makes the model the most stationary. (but, remember that since the data is trasnsformed, some of the years were cut-off/removed) 
+
+We also tried to use the function "decompose" (both additive and multiplicative models) and "stl" to see whether we could determine the trend using a moving average and lowess. Here, since the seaosonal variation is relatively constant, it is better for us to use additive model. From these two, we could easily found the trend is increasing.
+
+Last but not least, we tried to plot a scatterplot matrix to back-up what we did above. As it can be see, every sample autocorrelation is really high and we found really strong positive linear relationships at every lag. **(appendix Fig 18)** And, after we transformed the data (chased the staionary), we could finally conclude that our transformation was the right decision, as we have seen less autocorrelation and lowess fit looks much less linear. **(appendix Fig 19)**
+
+##2. Check stationarity (if not, determine a transformation that makes the series look stationary)
+
+After removing seasonality and trend, it looks staiontary. (Doing extra detrending techniques such as kernel smoothing, lowess, and smoothing splines can even remove white noises, which is not really good for ARIMA model, since ARIMA model works on stochastic datasets. So, we are going to just continue ARIMA analaysis after differencing only) **(Fig 2)**
+
+##3. ARIMA 
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/6.png}
+     \caption{ACF and PACF for transformed Hawaii CO2}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/9.png}
+     \caption{Third model}
+   \end{minipage}\hfill   
+\end{figure}
+
+Before we actually built the model, we decided to split the data into two sets. We would leave 12 data out. (from original dataset, not from the dataset differencing applied since they removed some data due to differencing) We do not want to use entired data set to build a model, since it is not a good idea to re-use them when we forecase, as it would be biased and might cause over-fitting. 
+
+Our model is ARIMA(p, 1, q) $\times$ $(P, 1, Q)_{12}$, as we made seasonal and $1^{st}$ differencings before. After, we identified the model by using ACF, PACF, and EACF built from the training set. **(Fig 3)** And, we came up with a few options: 
+
+1) Seasonal Component: At the season, it seems like the ACF is cutting off a lag 1s (s = 12), while PACF is tailing off at lags 1s, 2s, 3s, ... . From there, we could come up with a SMA(1) in the season where s = 12. 
+
+2) Non-Seasonal Component: For the nonseasonals, we could inspect ACF and PACF at the lower lags. Both of them are tailing off, and we could first try an p = q = 2. And, since they are not really obvious, we would rather perform model diagnostics and use AIC, BIC, AICc to find the best model fit. (which seems pretty reasonable as this is what it seems like many people and the textbook used)
+
+Paramter estimtions, model significance, model comparions, and model diagnostics will be computed using "sarima" function. We have compared 16 different models (please refer to the codes we have made), and came up with three good models that can fit well:
+
+Model 1: sarima(train, 2, 1, 1, 0, 1, 1, 12) **(appendix Fig 20)**
+
+Model 2: sarima(train, 1, 1, 1, 0, 1, 1, 12) **(appendix Fig 21)**
+
+Model 3: sarima(train, 0, 1, 1, 0, 1, 1, 12) **(Fig 4)**
+
+There is (are) one or two outliers in standardized residual plots, and residuals do not have trend.
+All of ACF of residuals are within the dotted line for every lag. (check ACF individually)
+Normality assumption for standardized residuals seem reasonable. (just a bit off at the tails)
+Ljung-box statistic shows the model is adequeate as there is no correlation between residuals (check ACF groupwise) So, we could say the residuals seems like they are white noise.
+
+After model comparisons, we came up with three good models: but everyone has its own strength - for example, one has the lowest AIC, AICC, BIC but have higher p-value for model coefficients (variable is not significant), the other one has the lowest p-value (variable is the most significant) but have higher AIC, AICC, BIC and ljung-box looks little bit worse.
+
+So, we decided to perform forecasting with these three models, and would go for the one that has the lowest MSE. (choose the best model in terms of forecasting)
+
+##4. Forecast
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/12.png}
+     \caption{Third model forecasting}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/30.png}
+     \caption{Forecast 2-year with prediction interval}
+   \end{minipage}\hfill
+\end{figure}
+
+Now, it is time for us to talk about forecasting. As we have mentioned earlier, we leave out the last 12 observations, and built models from there. By looking at the three models' forecastings, they all look **reasonable** as the actual 12 values are within confidence interval. (grey area from Fig 5) Now, we would compare MSE for these three models, to decide which model would be the best. We made two tables to compare actual and predicted values: one is for summary of predictions and standard errors for the three models, **(appendix Fig 24)** and the other one is for summary of MSE and mean MSE for the three models. **(appendix Fig 25)** And, we found that the model 3, ARIMA(0, 1, 1) $\times$ $(0, 1, 1)_{12}$ **(Fig 5)** has the lowest mean MSE. Last but not least, we made next 2-year forecasts with model 3, and as we already expected, CO2 level would keep go up. **(Fig 6)**
+
+##5. Spectral Analysis
+### Detrending
+We will use the dataset without the last 12 observation in order to select the best model for spectral analysis as we did in ARMA modeling. However, unlike ARMA analysis (we used differencing), we used  STL decomposition (Seasonal Decomposition of Time Series by Loess) in spectral analysis. We found that when we used the detrended data by differencing to pick the best frequencies and use them to generate features in cosine and sine terms, the generated data (red dotted line) did not grasp clear periodic trends in the original data. It rather looked like a linear line than periodic graph.**(appendix Fig 26)** Englarged image is in **(appendix Fig 27)**
+
+The distance between each peak is not fairly a constant **(Fig 2)** and we can conclude that differencing adds more noises to the original dataset and gave us inefficient detrended data which is not adequate for spectral analysis. Therefore, we tried to detrend it using lm function to remove the linear trend in the dataset because linearly increasing detrending might help. 
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/19.png}
+     \caption{Detrended data by lm function - second order}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/20.png}
+     \caption{Detrended data by STL decomposition}
+   \end{minipage}\hfill   
+\end{figure}
+
+However, surprisingly, the detrended data from lm looked like a parabola which means it is obviously not a stationary series. **(appendix Fig 28)** Therefore, we tried lm function with the second order polynomial, and the resulted periodogram looked like a stationary time series. **(Fig 7)** However, we want to explore more method for detrending and it led us to use stl function in R, and it worked successfully on our dataset. Basically we used STL decomposition to estimate the trend, then subtracted it from the original dataset. **(Fig 8)**
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/22.png}
+     \caption{Periodograms by different span of the kernel}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/23.png}
+     \caption{Periodograms by different span(dimension) of the kernel}
+   \end{minipage}\hfill   
+\end{figure}
+
+Next, as we expected from the periodic trends in the raw data, the raw periodogram shows clear peak frequencies. **(appendix Fig 29)** However, we still want to see other peak frequencies which might help give us more information on the periodic trends so we implied log spacing on spectrum and examined it.
+By looking at the raw periodogram and periodograms by different span of the kernel, **(Fig 9)** we could see that spans = c(3, 3) gives the best estimates since it did not do over smoothing nor missed important peaks. We could also examine that smoothing with larger span was inaccurate since it combined the small peaks into one big flat peak even though the actual spectrum had multiple peaks. Also, oversmoothing makes the difference between peaks smaller as we can see in the periodogram of span c(5, 5) and span c(7, 7) above.
+
+Also, we set up the different dimension of the span in kernel and checked that the smoothed periodograms are *not* fairly sensitive to dimension of the span in kernel because there was not much difference between different smoothed periodograms. **(Fig 10)** The general shape of the periodogram did not change significantly, and we concluded that more than two dimension of span is unnecessary.
+
+Next, we were curious about the effect of different types of kernels in smoothing, so we set up all parameters the same but only changed the type of the kernel and plotted each smoothed periodograms. As we could see in **(Fig 11)**, there were not much difference between daniell and modified daniell kernels, and dirichlet and fejer kernels did not smoothe periodogram very well because the former one produced unnecessary peaks and the latter flatten original peaks excessively. Therefore, we chose modified daniell kernel as our final type of the kernel for smoothing.
+
+Lastly, we checked the effect of different tapering. When we estimate a periodogram, we implicitly assume that our time series is circular. However, there will be a jump where the end meets the start again if we wrap the time series around. Resulted jump is unreasonable but will affect itself with all the frequencies and contaminate them. Therefore, one solution can be downweighting the beginning and end of the data and it will give more weight to the middle, and less weight to the ends when we calculate the periodogram. Even though there is still the jump at the end, it will not have great influence on periodogram due to the very little weight. This downweighting method is called tapering. 
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/24.png}
+     \caption{Periodograms by different type of the kernel}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/25.png}
+     \caption{Periodograms by different tapering}
+   \end{minipage}\hfill   
+\end{figure}
+
+We set up all parameters the same but only changed the portion of the tapering and plotted each smoothed periodograms like we did in the previous graph. As we could see in **(Fig 12)**, we can barely detect the difference between three different tapered smoothed periodograms. Therefore, we concluded that our smoothed periodogram is not sensitive to different tapering setups. We found that 10% of tapering gave us enough smoothing since it eliminated insignificant small bumps in the log spaced periodogram.
+By the result of previous observations, we decided our final periodogram smoothing model as modified daniell with span c(3,3) and 10% tapering. 
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/26.png}
+     \caption{(log) Periodograms with peaks of dotted lines}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/27.png}
+     \caption{Smoothed Periodograms VS parametric spectral estimator}
+   \end{minipage}\hfill   
+\end{figure}
+
+The dotted lines in **(Fig 13)** indicates the peak frequencies of periodograms except the first one. We picked two significant frequencies because they were the most obvious ones in the raw periodogram and had the great difference between the other peaks. The rounded best two frequencies from our data were 0.083 and 0.168 which are equal to approximately 12 months (1/0.083 = 12.04819) and 6 months (1/0.168 = 5.952381).
+
+We also compared the smoothed periodogram with the parametric spectral estimator which estimates spectral density of a time series from AR fit (the red dotted line) **(Fig 14)**  We could easily see that the AR estimation fits fairly well with the logged raw periodogram. 
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/28.png}
+     \caption{Data generated by peak frequencies}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/29.png}
+     \caption{Forecast 2-year with prediction interval}
+   \end{minipage}\hfill   
+\end{figure}
+
+As we previously mentioned, we used the top two frequencies (peaks) to generate features in terms of sine and cosine functions. The red dotted line in **(Fig 15)** generated by sine and cosine terms, and it approximates the general periodic trend in raw data well enough. Therefore, we used this model to forecast 12 observations and calculated MSE by comparing them with the original data points which we have left as the test dataset in the beginning. The **MSE** was 11.25757, and we predicted 24 future observations and prediction interval for each month. Blue dotted lines are prediction invervals and blue solids line is the predicted points. **(Fig 16)**
+
+#**Result/Key Findings**
+
+\underline{\textbf{ARIMA}}: ARIMA(0, 1, 1) $\times$ $(0, 1, 1)_{12}$ is the best model (lowest mean MSE with the leave 12 out forecasting) we could come up with. 
+
+\underline{\textbf{Spectral Analysis}}: From the final model by different parameters settings, we concluded that the data has roughly 1 year and 6 months of periodic trend.
+
+#**Conclusion** 
+
+**- What are the key takeway messages from the project?**
+
+As we noticed when we were detrending the raw data, the data looked like it had a linearly increasing trend but it turned out to have a quadratic increasing trend which is quite unexpected. It reminded us that we should not merely assume that the data itself is a linear although it seems following a linear trend pretty well at a glance.
+
+In spectral analysis, the significant general periodic trends are 1 year and 6 months which indicates that the data is likely to be related to the actual seasons. We can see that the local maximums (peaks) are generally in May and June and the local minimums are in October and November, so it corresponds to the frequencies that we had found. Therefore, we can conclude that the $CO_2$ level gets higher when the temperature gets higher and vice versa. 
+
+Last but not least, We might need different types of techniques for ARIMA and spectral analysis to make them stationary.
+
+**- Highlight the most interesting findings from your data analysis.**
+
+In spectral analysis, we were quite surprised that the actual best frequencies are almost exactly 6 months and a year because it means that the $CO_2$ level fluctuates according to the exact time schedule. It also means that there exists a annual circular trends of $CO_2$ which is not related to the industrial by-product of mankind. 
+
+Moreover, despite the fact from the artical in NASA and other reports that the recent relentless rise in $CO_2$ shows a remarkably constant relationship with fossil-fuel burning, we found that the $CO_2$ level is not increasing in a linear trend but in a quadratic trend. It warns us that the $CO_2$ level was increasing slower in back in 1960's but more rapidly increasing in 1990's and possibly nowadays from our previous modeling results. These findings alert us the reason why technology companies need to develop eco-friendly products and natural sustainable energy in order to survive next century.
+
+Furthermore, ARIMA did a better job on forecasting than spectral analysis, as the MSE from the ARIMA model was much lower. 
+
+**- What are some possible future analysis of the dataset?**
+
+Based on our models, we could expect to have way more $CO_2$ recently with the higher increase rate; however, people get acknowledged of the issue, and many government puts more regulations on $CO_2$ emmision rate. So, we expect to see some level-shifts (outlier) in recent year.
+
+#**How it can be further developed** 
+
+It would be much better if we could attain more recent data, then we might be able to better persuade how serious the pollutions are. Because we know that we might not be able to make good long-term forecastings with ARIMA models and more data lower the variance, so we hope to collect more data.
+
+$\\$
+
+$\\$
+
+#**Appendix**
+
+###**_EDA and ARIMA_**
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/2.png}
+     \caption{Seasonal plot}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/3.png}
+     \caption{Scatterplot matrix before transforming}
+   \end{minipage}\hfill   
+\end{figure}
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/4.png}
+     \caption{Scatterplot matrix after transforming}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/7.png}
+     \caption{First model}
+   \end{minipage}\hfill 
+\end{figure}
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/8.png}
+     \caption{Second model}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/10.png}
+     \caption{First model forecasting}
+   \end{minipage}\hfill 
+\end{figure}
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/11.png}
+     \caption{Second model forecasting}
+   \end{minipage}\hfill 
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/13.png}
+     \caption{Prediction and SE for three models}
+   \end{minipage}\hfill  
+\end{figure}
+
+\begin{figure}[H]
+   \begin{minipage}{0.4\textwidth}
+     \centering
+     \includegraphics[width=.4\linewidth]{../images/14.png}
+     \caption{MSE and Mean MSE for three models}
+   \end{minipage}\hfill
+\end{figure}
+
+###**_Spectral Analysis_**
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/16.png}
+     \caption{Generated features by using detrended data by differencing}
+   \end{minipage}\hfill
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/17.png}
+     \caption{enlarged Figure 7 for better visualization}
+   \end{minipage}\hfill
+\end{figure}
+
+\begin{figure}[H]
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/18.png}
+     \caption{Detrended data by lm function - first order}
+   \end{minipage}\hfill 
+   \begin{minipage}{0.5\textwidth}
+     \centering
+     \includegraphics[width=.7\linewidth]{../images/21.png}
+     \caption{Raw periodogram}
+   \end{minipage}\hfill   
+\end{figure}
+
+###**_Code_**
+
+####**EDA**
+```r 
+hawaii <- read.csv("../data/Carbon_Hawaii.csv")
+dim(hawaii)
+hawaii.ts <- ts(hawaii$Carbondioxide, frequency=12, start=c(1959, 1), end=c(1990, 12))
+anyNA(hawaii.ts)
+
+plot(hawaii)
+plot(hawaii.ts)
+
+head(hawaii)
+
+# Time series plot
+autoplot(hawaii.ts, main = "Hawaii CO2", xlab = "Time", ylab = "Number")
+
+plot.ts(hawaii.ts, main = "Hawaii CO2", xlab = "Time", ylab = "Number")
+abline(reg=lm(hawaii.ts~time(hawaii.ts)), col = "red")
+
+
+# Identifying outliers
+Out <- boxplot(hawaii.ts)$out
+length(which(hawaii.ts %in% Out))
+
+den <- density(hawaii.ts, adjust = 1)
+plot(den, main = "density plot for Hawaii CO2")
+polygon(den, col = "red", border = "blue")
+
+outs <- tso(hawaii.ts, types = c("TC", "AO", "LS", "IO", "SLS"))
+tsoutliers(hawaii.ts)
+plot(outs)
+
+# Another inspection
+time(hawaii.ts)
+cycle(hawaii.ts)
+
+summary(hawaii.ts)
+str(hawaii.ts)
+dim(hawaii.ts)
+sd(hawaii.ts)
+```
+
+####**Analysis**
+```r
+#Initial check
+adf.test(hawaii.ts)
+#kpss.test(hawaii.ts)
+
+
+
+
+
+
+#Trend OR Seasonality
+decomp <- decompose(hawaii.ts, type=c("additive")) # use type = "additive" for additive components by MA
+plot(decomp) 
+decomp2 <- decompose(hawaii.ts, type=c("multiplicative")) # use type = "additive" for additive components by MA
+plot(decomp2) 
+
+lowesdecomp <- stl(hawaii.ts, s.window = "periodic") #seasonal decomposition by lowess
+lowesdecomp
+
+plot(seasadj(lowesdecomp))
+plot(seasadj(decomp2))
+plot(seasadj(decomp))
+
+seasonplot(seasadj(lowesdecomp), col = rainbow(10), main = "seasonal plot")
+seasonplot(hawaii.ts, col = rainbow(10), main = "seasonal plot for original data")
+
+
+ndiffs(hawaii.ts) #check how many differencing is needed 
+ndiffs(seasadj(decomp2))
+ndiffs(seasadj(lowesdecomp))
+
+plot(diff(hawaii.ts, 12, 1), type = "o")
+mean(diff(hawaii.ts, 12, 1))
+adf.test(diff(hawaii.ts, 12, 1))
+
+adf <- 0 #Initializing vector for adf data 
+for(i in 1:11){
+  adf[i] <- adf.test(diff(diff(hawaii.ts, 12, i)))$statistic
+}
+
+which.min(adf) #check which model is the most significant/most stationary
+
+plot(diff(diff(hawaii.ts, 12, 1)), type = "o")
+mean(diff(diff(hawaii.ts, 12, 1)))
+
+
+
+
+
+
+
+#It is a new dataset after 1st and seasonal differencings
+newdata <- diff(diff(hawaii.ts, 12, 1))
+
+
+#Moving average smoothings/filtering
+mv <- stats::filter(newdata, sides = 2, filter = c(0.5, rep(1, 11), 0.5)/12)
+plot(newdata, main = "Detrending")
+lines(mv, col = 2)
+
+#Kernel smooth
+plot(newdata)
+lines(ksmooth(time(newdata), newdata, kernel = "normal", bandwidth = 1), col = 3)
+
+#Lowess 
+plot(newdata)
+lines(lowess(newdata), col = 4)
+
+#smooth splines
+lines(smooth.spline(time(newdata), newdata, spar = 0.5), col = 5)
+
+
+
+
+
+
+
+#Scatterplot matrix and acf and pacf for sanity check
+lag1.plot(hawaii.ts, max.lag = 12)
+acf(hawaii.ts)
+pacf(hawaii.ts)
+
+lag1.plot(newdata, max.lag = 12)
+```
+
+####**S(ARIMA)**
+```r
+#Split the train and testing
+test <- tail(hawaii.ts, 12)
+train <- head(hawaii.ts, -12)
+
+length(test)
+length(train)
+length(hawaii.ts)
+
+newtrain <- diff(diff(train, 12, 1))
+  
+
+
+
+
+#ACF, PACF, EACF
+acf2(newtrain, main = "ACF and PACF for transformed Hawaii CO2")
+eacf(newtrain)
+
+
+
+
+
+
+#Sarima - model comparison (out = not appropriate, good = appropriate)
+
+sarima(train, 2, 1, 2, 0, 1, 1, 12) #out
+sarima(train, 2, 1, 1, 0, 1, 1, 12) #good 
+sarima(train, 1, 1, 2, 0, 1, 1, 12) #out
+
+
+sarima(train, 0, 1, 2, 0, 1, 1, 12) #out
+sarima(train, 1, 1, 1, 0, 1, 1, 12) #good 
+sarima(train, 0, 1, 1, 0, 1, 1, 12) #good
+
+sarima(train, 1, 1, 0, 0, 1, 1, 12) #out
+sarima(train, 0, 1, 0, 0, 1, 1, 12) #out
+
+
+
+
+sarima(train, 2, 1, 2, 1, 1, 1, 12) #out
+sarima(train, 2, 1, 1, 1, 1, 1, 12) #out
+sarima(train, 1, 1, 2, 1, 1, 1, 12) #out
+
+
+sarima(train, 0, 1, 2, 1, 1, 1, 12) #out
+sarima(train, 1, 1, 1, 1, 1, 1, 12) #out
+sarima(train, 0, 1, 1, 1, 1, 1, 12) #out
+
+sarima(train, 1, 1, 0, 1, 1, 1, 12) #out
+sarima(train, 0, 1, 0, 1, 1, 1, 12) #out
+
+#turning.point.test(train)
+#shapiro.test()
+#qqnorm()
+
+
+
+
+
+
+#Model parameter estimation
+model1 <- sarima(train, 2, 1, 1, 0, 1, 1, 12)
+model2 <- sarima(train, 1, 1, 1, 0, 1, 1, 12) 
+model3 <- sarima(train, 0, 1, 1, 0, 1, 1, 12) 
+
+model1$ttable[,1]
+model2$ttable[,1]
+model3$ttable[,1]
+
+
+
+
+#Forecasting
+model1_for <- sarima.for(train, 12, 2, 1, 1, 0, 1, 1, 12)
+lines(test, type = "o", col = "blue") #real 
+title(main = "model 1 forecasting (red = predict, blue = real)")
+
+model2_for <- sarima.for(train, 12, 1, 1, 1, 0, 1, 1, 12)
+lines(test, type = "o", col = "blue") #real 
+title("model 2 forecasting (red = predict, blue = real)")
+
+model3_for <- sarima.for(train, 12, 0, 1, 1, 0, 1, 1, 12)
+lines(test, type = "o", col = "blue") #real 
+title("model 3 forecasting (red = predict, blue = real)")
+
+
+
+model_for <- sarima.for(hawaii.ts, 24, 0, 1, 1, 0, 1, 1, 12)
+lines(test, type = "o", col = "blue") 
+title("Future 2-year forecasting")
+
+
+
+#Prediction and Standard Error table
+predict_data <- data.frame(model1_prediction = model1_for$pred,
+                     model1_sd = model1_for$se,
+                     model2_prediction = model2_for$pred,
+                     model2_sd = model2_for$se,
+                     model3_prediction = model3_for$pred,
+                     model3_sd = model1_for$se)
+predict_data <- round(predict_data, 3)
+predict_data
+
+
+
+
+
+#MSE and Mean MSE table
+mse_data <- matrix(0, 12, 3)
+
+for(j in 1:3){
+  for(i in 1:12){
+    mse_data[i, j] <- (test[i] - predict_data[i, 2*j - 1])^2
+  }
+}
+mse_data <- rbind(mse_data, colMeans(mse_data))
+colnames(mse_data) <- c("Model1", "Model2", "Model3")
+name <- 0
+for(i in 1:nrow(mse_data) - 1){
+  name[i] <- paste0("MSE: 1990, ", i)
+}
+name <- c(name, "Mean MSE")
+rownames(mse_data) <- name
+
+mse_data
+```
+
+####**Spectral Analysis begins (detrend by diff)**
+
+```r
+plot(newdata)   
+
+
+#pick the key frequencies
+final <- spec.pgram(newdata, kernel("modified.daniell", c(3, 3)),
+                    taper=0.1, plot = F)
+
+keyidx <- c(1, which(diff(sign(diff(final$spec)))==-2) + 1)
+keyfreq <- final$freq[keyidx]
+abline(v=keyfreq, lty=2)
+
+
+topfreq <- keyfreq[order(final$spec[keyidx], decreasing = T)][1:3]/12
+time <- 1: length(hawaii$Carbondioxide)
+
+terms <- do.call(cbind, lapply(topfreq, function(freq) {
+  cbind(cos(2 * pi * freq * time), sin(2 * pi * freq * time))
+}))
+
+
+
+combined <- data.frame(hawaii = hawaii$Carbondioxide, time, terms)
+fit <- lm(hawaii ~ ., combined)
+summary(fit)
+plot(time, hawaii$Carbondioxide, type="l")
+lines(time, fit$fitted.values, lty=2, col="red")
+
+plot(1:50, hawaii$Carbondioxide[1:50], type="l")
+lines(1:50, fit$fitted.values[1:50], lty=2, col="red")
+```
+
+####**Detrend by lm**
+
+```r
+t <- 1:length(hawaii.ts)
+fit <- lm(hawaii.ts ~ t)
+hawaii_detrended <- fit$residuals
+plot.ts(hawaii_detrended)
+
+fit <- lm(hawaii.ts ~ t + I(t^2))
+hawaii_detrended <- fit$residuals
+plot.ts(hawaii_detrended)
+```
+
+####**Detrend by stl**
+
+```r
+trend = stl(hawaii.ts, s.window = "periodic")$time.series[,2]
+
+detrended_stl <- hawaii.ts - (trend - trend[1])
+
+#length(detrended_stl)-12
+
+newdata = detrended_stl[1 : 372]
+
+plot(detrended_stl)
+```
+
+####**Span on kernel**
+
+```r
+k0.smooth <- spec.pgram(newdata, log='no', taper=0, pad=0, fast=FALSE, demean=TRUE, detrend=FALSE, plot = F) 
+
+autoplot(k0.smooth, log = 'no', main = "Raw periodogram")
+
+
+k1 <- kernel("daniell", c(1, 1))
+k1.smooth <- spec.pgram(newdata, kernel = k1, log = 'no', taper = 0, plot = FALSE)
+smooth.df <- data.frame(freq = k1.smooth$freq, `c(1,1)` = k1.smooth$spec)
+names(smooth.df) <- c("frequency", "c(1,1)")
+# Add other smooths
+k2 <- kernel("daniell", c(3, 3))
+smooth.df[, "c(3,3)"] <- spec.pgram(newdata, kernel = k2, log = 'no', taper = 0, plot = FALSE)$spec
+k3 <- kernel("daniell", c(5, 5))
+smooth.df[, "c(5,5)"] <- spec.pgram(newdata, kernel = k3, log = 'no', taper = 0, plot = FALSE)$spec
+
+k4 <- kernel("daniell", c(7, 7))
+smooth.df[, "c(7,7)"] <- spec.pgram(newdata, kernel = k4, log = 'no', taper = 0, plot = FALSE)$spec
+
+# Melt dataframe in order to plot three graph together
+
+smooth.df1 <- melt(smooth.df, variable.name = "dimension", 
+                  id.vars = "frequency", value.name = "spectrum")
+plot1 <- ggplot(data = subset(smooth.df1)) + geom_path(aes(x = frequency, y = spectrum, color = dimension)) +  scale_x_continuous("frequency")
+
+
+plot2 <- ggplot(data = subset(smooth.df1)) + 
+  geom_path(aes(x = frequency, y = spectrum, color = dimension)) + 
+  scale_x_continuous("frequency") +  scale_y_log10() + 
+  labs(title = "log spacing on spectrum")
+
+grid.arrange(plot1, plot2)
+```
+
+####**Span on kernel c.t.**
+
+```r
+# Effect of different span(dimention) on Kernel
+
+k1 <- kernel("daniell", c(3, 3, 3))
+k1.smooth <- spec.pgram(newdata, kernel = k1, log = 'no', taper = 0, plot = FALSE)
+smooth.df <- data.frame(freq = k1.smooth$freq, `c(3,3,3)` = k1.smooth$spec)
+names(smooth.df) <- c("frequency", "c(3,3,3)")
+# Add other smooths
+k2 <- kernel("daniell", c(3,3))
+smooth.df[, "c(3,3)"] <- spec.pgram(newdata, kernel = k2, log = 'no', taper = 0, plot = FALSE)$spec
+k3 <- kernel("daniell", c(3))
+smooth.df[, "c(3)"] <- spec.pgram(newdata, kernel = k3, log = 'no', taper = 0, plot = FALSE)$spec
+
+
+
+# Melt dataframe in order to plot three graph together
+
+smooth.df <- melt(smooth.df, variable.name = "dimension", 
+                  id.vars = "frequency", value.name = "spectrum")
+plot1 <- ggplot(data = subset(smooth.df)) + geom_path(aes(x = frequency, y = spectrum, color = dimension)) +  scale_x_continuous("frequency") 
+plot2 <- ggplot(data = subset(smooth.df)) + 
+  geom_path(aes(x = frequency, y = spectrum, color = dimension)) + 
+  scale_x_continuous("frequency") +  scale_y_log10() + 
+  labs(title = "log spacing on spectrum")
+
+grid.arrange(plot1, plot2)
+```
+
+####**Effect of kernel**
+
+```r
+#Effect of different kernel
+
+k1 <- kernel("daniell", 3, 1)
+k1.smooth <- spec.pgram(newdata, kernel = k1, log = 'no', taper = 0, plot = FALSE)
+smooth.df <- data.frame(freq = k1.smooth$freq, `daniell` = k1.smooth$spec)
+names(smooth.df) <- c("frequency", "daniell")
+# Add other smooths kernel
+k2 <- kernel("dirichlet", 3, 1)  
+smooth.df[, "dirichlet"] <- spec.pgram(newdata, kernel = k2, log = 'no', taper = 0, plot = FALSE)$spec
+k3 <- kernel("fejer", 3, 1)
+smooth.df[, "fejer"] <- spec.pgram(newdata, kernel = k3, log = 'no', taper = 0, plot = FALSE)$spec
+k4 <- kernel("modified.daniell", 3, 1)
+smooth.df[, "modi.daniell"] <- spec.pgram(newdata, kernel = k4, log = 'no', taper = 0, plot = FALSE)$spec
+
+
+# Melt dataframe in order to plot three graph together
+smooth.df <- melt(smooth.df, variable.name = "kernel", 
+                  id.vars = "frequency", value.name = "spectrum")
+
+which(is.nan(smooth.df[,3]))
+
+
+plot1 <- ggplot(data = subset(smooth.df)) + geom_path(aes(x = frequency, y = spectrum, color = kernel)) +  scale_x_continuous("frequency") 
+
+plot2 <- ggplot(data = subset(smooth.df)) + 
+  geom_path(aes(x = frequency, y = spectrum, color = kernel)) + 
+  scale_x_continuous("frequency") +  scale_y_log10() + 
+  labs(title = "log spacing on spectrum")
+
+grid.arrange(plot1, plot2)
+```
+
+####**Tapering**
+
+```r
+k1 <- kernel("modified.daniell", c(3,3) , 2)
+
+k1.smooth <- spec.pgram(newdata, kernel = k1, taper = 0, log = 'no', plot = FALSE)
+smooth.df <- data.frame(freq = k1.smooth$freq, `0%` = k1.smooth$spec)
+names(smooth.df) <- c("frequency", "0%")
+# Add other tapers
+smooth.df[, "10%"] <- spec.pgram(newdata, kernel = k1, taper = 0.1, log = 'no', plot = FALSE)$spec
+smooth.df[, "30%"] <- spec.pgram(newdata, kernel = k1, taper = 0.3, log = 'no',  plot = FALSE)$spec
+
+smooth.df <- melt(smooth.df, variable.name = "taper", 
+                  id.vars = "frequency", value.name = "spectrum")
+plot1 <- ggplot(data = subset(smooth.df)) + geom_path(aes(x = frequency, y = spectrum, color = taper)) + scale_x_continuous("frequency") 
+# +  scale_y_log10()
+
+plot2 <- ggplot(data = subset(smooth.df)) + geom_path(aes(x = frequency, y = spectrum, color = taper)) + scale_x_continuous("frequency") + scale_y_log10() + labs(title = "log spacing on spectrum")
+
+grid.arrange(plot1, plot2)
+```
+
+####**Key freq**
+
+```r
+#pick the key frequencies
+final <- spec.pgram(newdata, kernel("modified.daniell", c(3, 3)), taper = 0.1)
+keyidx <- c(1, which(diff(sign(diff(final$spec)))==-2) + 1)
+keyfreq <- final$freq[keyidx]
+abline(v=keyfreq, lty=2)
+
+# compare with the parametric spectral estimator 
+plot(final)
+AR <- spec.ar(newdata, plot=F)
+lines(AR$freq, AR$spec, lty=2, col="red")
+
+# pick top three frequencies and use these to generate features in terms of sin and cos functions. 
+
+
+topfreq <- keyfreq[order(final$spec[keyidx], decreasing = T)][1:2]
+
+cat("Top frequencies are :", topfreq[1], " and ", topfreq[2])
+
+time <- 1: length(newdata)
+
+terms <- do.call(cbind, lapply(topfreq, function(freq) {
+  cbind(cos(2 * pi * freq * time), sin(2 * pi * freq * time))
+}))
+
+
+
+combined <- data.frame(hawaii = hawaii$Carbondioxide[1:length(time)], time, terms)
+fit <- lm(hawaii ~ ., combined)
+summary(fit)
+plot(time, hawaii$Carbondioxide[1:length(time)], type="l")
+lines(time, fit$fitted.values, lty=2, col="red")
+
+plot(1:50, hawaii$Carbondioxide[1:50], type="l")
+lines(1:50, fit$fitted.values[1:50], lty=2, col="red")
+```
+
+####**Forecast 12 obs**
+
+```r
+time_new <- (length(time) + 1):(length(time) + 12)
+
+terms_new <- do.call(cbind, lapply(topfreq, function(freq) {
+  cbind(cos(2 * pi * freq * time_new), sin(2 * pi * freq * time_new))
+}))
+
+combined_new <- data.frame(time_new, terms_new)
+colnames(combined_new) <- colnames(combined)[-1]
+predictions <- predict.lm(fit, newdata=combined_new,interval="prediction", level=.95)
+
+
+plot(time, hawaii$Carbondioxide[1:length(time)], type="l", xlim=c(0, 390), ylim=c(310, 360))
+lines(time, fit$fitted.values, lty=2, col="red")
+lines(time_new, predictions[, "fit"], col="blue")
+matlines(time_new, predictions[, 2:3], col = "purple", lty=3)
+
+
+#Forecasted data Enlarged
+plot(350:372, hawaii$Carbondioxide[350:length(time)], type="l", xlim=c(350, 386), ylim=c(342, 358))
+lines(350:372, fit$fitted.values[350:372], lty=2, col="red")
+lines(time_new, predictions[, "fit"], col="blue")
+matlines(time_new, predictions[, 2:3], col = "purple", lty=3)
+```
+
+####**MSE**
+
+```r
+MSE_spectral <- mean((hawaii$Carbondioxide[373:384] - predictions[, "fit"])^2)
+
+MSE_spectral
+```
+
+####**Forecast future 24**
+
+```r
+time <- 1: length(hawaii$Carbondioxide)
+
+terms <- do.call(cbind, lapply(topfreq, function(freq) {
+  cbind(cos(2 * pi * freq * time), sin(2 * pi * freq * time))
+}))
+
+combined <- data.frame(hawaii = hawaii$Carbondioxide, time, terms)
+fit <- lm(hawaii ~ ., combined)
+
+time_new <- 385:408
+
+terms_new <- do.call(cbind, lapply(topfreq, function(freq) {
+  cbind(cos(2 * pi * freq * time_new), sin(2 * pi * freq * time_new))
+}))
+
+combined_new <- data.frame(time_new, terms_new)
+colnames(combined_new) <- colnames(combined)[-1]
+
+predictions <- predict.lm(fit, newdata=combined_new, interval="prediction", level=.95)
+
+
+plot(time, hawaii$Carbondioxide[1:length(time)], type="l", xlim=c(0, 410), ylim=c(310, 360))
+lines(time, fit$fitted.values, lty=2, col="red")
+lines(time_new, predictions[, "fit"], col="blue")
+matlines(time_new, predictions[, 2:3], col = "purple", lty=3)
+```
+
+
+
+
+#**Reference/Citations**
+
+\textbf{Shumway, Robert H., and David S. Stoffer. Time Series Analysis and Its Applications: with R Examples. Springer, 2017.}
+
+\textbf{Chan, Jonathan D. CryerKung-Sik. “Time Series Analysis.” With Applications in R | Jonathan D. Cryer | Springer, Springer-Verlag New York, www.springer.com/us/book/9780387759586.}
+
+\textbf{Passmore, Rachel. “Data Sets.” Time Series, timeseries.weebly.com/data-sets.html.}
+
+\textbf{Passmore, Rachel. “15 Time Series Datasets (2012).” CensusAtSchool New Zealand, 14 July 2017, new.censusatschool.org.nz/resource/time-series-data-sets-2012/.}
+
+\textbf{Garziano, Giorgio. “Outliers Detection and Intervention Analysis.” DataScience+, 4 Dec. 2017, datascienceplus.com/outliers-detection-and-intervention-analysis/.}
+
+
+

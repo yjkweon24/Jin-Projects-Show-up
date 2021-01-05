@@ -1,0 +1,352 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:f="http://java.sun.com/jsf/core"
+                xmlns:p="http://primefaces.org/ui"
+                template="/template/_template.xhtml">
+    <ui:define name="stacker"/>
+    <ui:define name="content">
+        <h:panelGrid style="padding:30px 30px 20px 40px; width: 90%">
+            <font style="font-size: 18px; color: #2779aa"><b>Frequently Asked Questions (FAQs)</b></font>
+            <h:panelGrid style="padding: 10px; line-height: 21px; font-family: Arial; width: 100%">
+                <p:tabView id="ac" style="width:100%; border: none; background: none; font-size: 13px !important;"> 
+                    <p:tab title ="Data Processing">
+                        <OL style="line-height: 24px;">
+                            <LI>
+                                <a href="#ma">When should I use MultiOmics? </a>
+                            </LI>
+                            <LI>
+                                <a href="#input1">What types of input does MultiOmics accept?</a>
+                            </LI>   
+                            <LI>
+                                <a href="#missing">Why should I use the data missing value imputation option?</a>
+                            </LI>
+                            <LI>
+                                <a href="#filter">Why should I use the data filtering option?</a>
+                            </LI>
+                            <LI>
+                                <a href="#filter1">Which option should I choose to perform data filtering?</a>
+                            </LI>
+                            <LI>
+                                <a href="#norm1">Why should I normalize my data?</a>
+                            </LI>
+                            <LI>
+                                <a href="#norm2">What are the various normalization methods and which method should I choose?</a>
+                            </LI>
+                            <LI>
+                                <a href="#rare">When should I opt to rarefy my data?</a>
+                            </LI>
+                            <LI>
+                                <a href="#outl">How can I detect and deal with outliers?</a>
+                            </LI>
+                            <LI>
+                                <a href="#secure">Is the data I uploaded kept confidential?</a>
+                            </LI>
+                            <LI>
+                                <a href="#dst">Are non-human data sets supported?</a>
+                            </LI>                            
+                        </OL>
+                          
+                        <ol>
+                            <li>
+                                <h4><a name = "ma">When should I use <i>MultiOmics</i>?</a></h4>
+                                <p>
+                                    MultiOmics is a user-friendly, comprehensive web-based tool for integrating and analyzing two different -omics datasets from the same samples. The focus of this tool is to perform 
+                                    <b>statistical analysis</b>, <b>visual exploration</b>, and <b>data integration</b>. 
+                                </p>
+                            </li>
+                            <li>
+                                <h4><a name = "input1">What types of input does <i>MultiOmics</i> accept?</a></h4>
+                                <p>
+                                    MultiOmics supports common data formats generated in -omics studies including 
+                                    csv., txt., together with associated meta-data files. 
+                                    Detailed descriptions, screenshots, and example datasets can be found on the 
+                                    <a href="../../docs/DataFormat.xhtml">Data Format</a> page.
+                                </p>
+                            </li>
+                            <li>
+                                <h4><a name = "missing">Why should I use the data missing value imputation option?</a></h4>
+                                <p>
+                                    MultiOmics uses O2PLS, which requires no missing value. 
+                                </p>
+                            </li>
+                            <li>
+                                <h4><a name = "filter">Why should I use the data filtering?</a></h4>
+                                <p>
+                                    The purpose of data filtering is to allow users to remove low quality and/or uninformative features to improve 
+                                    downstream statisitcal analysis. MultiOmics contains three data filtering procedures:
+                                    <ol>
+                                        <li>
+                                            Minimal data filtering (applied to all analysis) - the procedure will remove features containing all zeros, or appearing in only one sample. 
+                                            These extremely rare features should be removed from consideration; 
+                                        </li>
+                                        <li>
+                                            Low abundance features - they may be due to sequencing errors or low-level contaminations; 
+                                        </li>
+                                        <li>
+                                            Low varianace features - they are unlikely to be associated with the conditions under study;
+                                        </li>
+                                    </ol>
+                                    Note, the last two options are not used for within-sample (alpha diveristy) profiling, but are strongly recommended for comparative analysis. 
+                                </p>
+                            </li>
+                            <li>
+                                <h4><a name = "filter1">Which option should I choose to perform data filtering?</a></h4>
+                                <p>
+                                    Users can choose from low count filter options to filter features with very small counts in very few sample (i.e. low prevalence).
+                                    If primary purpose is comparative analysis, users should filter features that exhibit low variance based on 
+                                    inter-quantile range, standard deviation or coefficient of variation, as they are very unlikely to be significant 
+                                    in the comparative analysis.
+                                </p>
+                            </li>
+                            <li>
+                                <h4><a name = "norm1">Why should I normalize my data?</a></h4>
+                                <p>
+                                    Metagenomic data possess some unique characteristics such as vast differences in sequencing depth, 
+                                    sparsity (containing many zeros) and large variance in distributions (overdispersion). These unique attributes
+                                    have made it inappropriate to directly apply methods developed in other omics fields to perform differential 
+                                    analysis on metegenomic data. To account for these issues, MultiOmics includes various 
+                                    normalization methods such as:
+                                    <ul>
+                                        <li>
+                                            <b>Rarefaction and scaling methods</b>: these methods deal with uneven sequencing depths by bringing samples to the same scale for comparison.
+                                        </li>
+                                        <li>
+                                            <b>Transformation methods</b>: it includes methods to deal with sparsity, compositionality, and large variations within the data.
+                                        </li>
+                                    </ul>
+                                </p>
+                            </li>
+                            <li>
+                                <h4><a name="norm2">What are the various normalization methods and which method should I choose?</a></h4>
+                                <p>
+                                    MultiOmics supports a variety of methods for data normalization. A brief summary is provided below:
+                                </p>
+    
+                                    <b>Data Scaling</b>
+                                    <ul>
+                                         <li>
+                                            <b>Total Sum Scaling (TSS) normalization</b>: this method removes technical bias related to different 
+                                            sequencing depth in different libraries via simply dividing each feature count with the 
+                                            total library size to yield relative proportion of counts for that feature. 
+                                            For easier interpretation, we can multiply it by 1,000,000 to get the number of reads 
+                                            corresponding to that feature per million reads. <a href="https://www.ncbi.nlm.nih.gov/pubmed/21702898" target='_blank'>LEfSe</a> utilizes this kind of approach.
+                                        </li>                                       
+                                        <li>
+                                            <b>Cumulative Sum Scaling (CSS) normalization</b>: it calculates the quantile of the count distribution of samples 
+                                            where they all should be roughly equivalent and independent of each other up to this quantile under 
+                                            the assumption that, at this range, counts are derived from a common distribution. 
+                                            By default, <a href="http://www.nature.com/nmeth/journal/v10/n12/full/nmeth.2658.html" target='_blank'>metagenomeSeq</a> utilizes this approach for differential analysis.
+                                        </li> 
+                                        
+                                        <li>
+                                            <b>Upper Quantile (UQ) normalization</b>: this is the upper-quartile normalization method of <a href="http://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-11-94" target='_blank'>Bullard et al </a> (2010), 
+                                            in which the scale factors are calculated from the 75% quantile of the counts for each library, 
+                                            after removing features which are zero in all libraries. This idea is generalized here to allow 
+                                            scaling by any quantile of the distributions. As negative counts are <b>not</b> allowed, we replaced the all negative counts to zero.
+                                        </li>  
+                                        <li>
+                                            <b>Auto Scaling normalization</b>:
+                                        </li>
+                                        <li>
+                                            <b>Min-Max Scaling normalization</b>:
+                                        </li>
+                                        <li>
+                                            <b>Quantile normalization</b>:
+                                        </li>
+                            
+                                    </ul>
+                                    
+                                    <br></br>
+                                    
+                                    <b>Data Transformation</b>
+                                    <ul>
+                                        <li>
+                                            <b>Relative log expression (RLE) normalization</b>: this is the scaling factor method 
+                                            proposed by <a href="https://genomebiology.biomedcentral.com/articles/10.1186/gb-2010-11-10-r106" target='_blank'>Anders and Huber </a> (2010). This method calculates the median library from the geometric 
+                                            mean of all columns. The median ratio of each sample to the median library is taken as the 
+                                            scaling factor. As negative counts are <b>not</b> allowed, we replaced the all negative counts to zero.
+                                        </li>
+                                        <li>
+                                            <b>Trimmed mean of M-values (TMM) normalization</b>: this is the weighted trimmed mean of M-values proposed by <a href="https://genomebiology.biomedcentral.com/articles/10.1186/gb-2010-11-3-r25" target='_blank'>Robinson and Oshlack </a>
+                                            (2010), where the weights are from the delta method on Binomial data. As negative counts are <b>not</b> allowed, we replaced the all negative counts to zero.
+                                        </li>
+                                        <li>
+                                            <b>Centered Log-Ratio (CLR) Transformation</b>: this method is specially designed to normalize compositional 
+                                            data. It convert the relative abundances of each part, or the values in the table of counts for each part, 
+                                            to ratios between all parts by calculating geometric mean of all values. This method is robust 
+                                            if data sets were not sparse because the geometric mean cannot be computed if any of the feature counts are zero. 
+                                        </li>
+                                        <li>
+                                            <b>Generalized Log (GLT) Transformation</b>: this algorithm is following: log(y + <math><msqrt><mi>y&sup2; + &lambda;</mi></msqrt></math>). 
+                                            A work from <a href="http://dmrocke.ucdavis.edu/" target='_blank'>David Rocke</a>.
+                                        </li>
+                                        <li>
+                                            <b>Two-parameter Box-cox Transformation</b>: the algorithm is explained <a href="https://en.wikipedia.org/wiki/Power_transform#Box%E2%80%93Cox_transformation" target='_blank'>here</a>.
+                                            Please note that every data element (y<subscript>i</subscript>) in -omics datasets should be bigger than the &lambda;<subscript>2</subscript>. 
+                                            
+                                            <br> </br>
+                                            If &lambda;<subscript>1</subscript> = 0, ln(y<subscript>i</subscript> + &lambda;<subscript>2</subscript>).
+                                            <br> </br>
+                                            If &lambda;<subscript>1</subscript> &ne; 0, [(y<subscript>i</subscript> + &lambda;<subscript>2</subscript>)^&lambda;<subscript>1</subscript> - 1] / &lambda;<subscript>1</subscript>.
+                                        </li>
+                                        <li>
+                                            <b>Variance Stabilizing normalization</b>:
+                                        </li>
+                                        <li>
+                                            <b>Log2 Transformation</b>:
+                                            As zero and negative counts are <b>not</b> allowed, we replaced the all zero and negative counts to the 'minimum/10' amongst all positive values.
+                                        </li>
+                                        <li>
+                                            <b>Log2-counts per million</b>:
+                                            As negative counts are <b>not</b> allowed, we replaced the all negative counts to zero.
+                                        </li>
+                                    </ul>
+                                
+                                <p>
+                                    Please note, data normalization is mainly used for visual data exploration such as beta-diversity and clustering analysis. 
+                                    It is also used for comparative analysis using statistical methods without known normalization procedures that work 
+                                    best (univariate statistics and LEfSe). Meanwhile, other comparative analyses will use their own specific 
+                                    normalization methods. For example, cumulative sum scaling (CSS) normalization is used for metagenomeSeq, 
+                                    and trimmed mean of M-values (TMM) is applied for edgeR.
+                                </p>
+                                <p>
+                                    At the moment, there is no consensus guideline with regard to which normalization should be used. Users are adviced to <b>explore different approaches and 
+                                        then visually examine the separation patterns to assess the effects of different normalization procedures with regard to experimental conditions 
+                                        or other meta-data of interest</b>. For detailed discussion about these methods, users are referred to two recent papers  
+                                    <a href="https://doi.org/10.1371/journal.pcbi.1003531" target='_blank'>Paul J. McMurdie et al.</a> and 
+                                    <a href="http://doi.org/10.1186/s40168-016-0208-8" target='_blank'>Jonathan Thorsen et al.</a>
+                                </p>
+                                    
+                            </li>
+                            <li>
+                                <h4><a name = "rare">When should I opt to rarefy my data?</a></h4>
+                                <p>
+                                    When the datasets are big (especially, # of features), it can cause the slow performance on the website, without giving huge benefits on analysis.  
+                                    In MultiOmics, users can directly visualize the sample size (available on the <b>Data Inspection</b> page) to check the need of rarefaction for their data.
+                                </p>
+                            </li>
+                            <li>
+                                <h4><a name = "outl">How can I detect and deal with outliers?</a></h4>
+                                <p>
+                                    Outliers refers to those samples that are significantly different from the "majority". 
+                                    The potential outlier will distinguish itself as the sample located far away from major 
+                                    clusters or trends formed by the remaining data. To discover potential outliers, users can 
+                                    use a variety of summary plots to visualize their data. For instance, a sample with extreme 
+                                    diversity (alpha or beta) or very low sequencing depth (rarefaction curve analysis or sample size viewer)
+                                    may be considered a potential outlier. Outliers may be arise due to either biological or technical reasons. To deal with outliers, 
+                                    the first step is to check if those samples were measured properly. In many cases, outliers are 
+                                    the result of operational errors during the analytical process. If those values cannot be corrected 
+                                    (i.e. by normalization procedures), they should be removed from your analysis via Sample Editor.
+                                </p>
+                            </li>
+                            <li>
+                                <h4><a name = "secure">Is the data I uploaded kept confidential?</a></h4>
+                                <p>
+                                    Yes. The data files you upload for analysis as well as any analysis results, are not downloaded or examined in any way by 
+                                    the administrators, unless required for system maintenance and troubleshooting. All files are deleted from the server after no 
+                                    more than 72 hours, and no archives or backups are kept. You are advised to download your results as an zip immediately 
+                                    after performing an analysis.
+                                </p>
+                            </li>
+                            <li>
+                                <h4><a name = "dst">Are non-human data-sets available?</a></h4>
+                                <p>
+                                    Yes, although, most current data sets are from human studies. The resources will be updated once high-quality and well-annotated 
+                                    public data sets become available. 
+                                </p>
+                            </li>
+                        </ol>
+                    </p:tab>
+                    <p:tab title="O2PLS analysis">
+                        <ol style="line-height: 24px;">
+                            <LI>
+                                <a href="#output1">What types of outputs does MultiOmics spit out?</a>
+                            </LI> 
+                            <LI>
+                                <a href="#output2">How to interprete each output?</a>
+                            </LI>                             
+                        </ol>
+                        <ol>
+                            <li>
+                                <h4><a name="output1">What types of outputs does MultiOmics spit out?</a></h4>
+                                <p>
+                                    MultiOmics includes various useful outputs such as:
+                                    <ul>
+                                        <li>
+                                            <b>Criteria of choosing # of joint and orthogonal variables</b>:  
+                                        </li>
+                                        <li>
+                                            <b>Variation tables</b>: 
+                                        </li>
+                                        <li>
+                                            <b>Sum of Squares (SSQ) plots</b>: 
+                                        </li>
+                                         <li>
+                                            <b>Loading plots and tables</b>: 
+                                        </li>
+                                        <li>
+                                            <b>Score plots and tables</b>: 
+                                        </li>  
+                                        <li>
+                                            <b>Quality of predictions</b>: 
+                                        </li>  
+                                        <li>
+                                            <b>Correlation plots</b>: 
+                                        </li>  
+                                        <li>
+                                            <b>PCA on O2PLS scores</b>: 
+                                        </li>  
+                                        <li>
+                                            <b>Sankey diagram</b>: 
+                                        </li>  
+                                        
+                                    </ul>
+                                </p>
+                            </li>
+    
+                            <li>
+                                <h4><a name="output2">How to interprete each output?</a></h4>
+                               <p>
+                                    MultiOmics includes various useful outputs such as:
+                                    <ul>
+                                        <li>
+                                            <b>Criteria of choosing # of joint and orthogonal variables</b>:  
+                                        </li>
+                                        <li>
+                                            <b>Variation tables</b>: 
+                                        </li>
+                                        <li>
+                                            <b>Sum of Squares (SSQ) plots</b>: 
+                                        </li>
+                                         <li>
+                                            <b>Loading plots and tables</b>: 
+                                        </li>
+                                        <li>
+                                            <b>Score plots and tables</b>: 
+                                        </li>  
+                                        <li>
+                                            <b>Quality of predictions</b>: 
+                                        </li>  
+                                        <li>
+                                            <b>Correlation plots</b>: 
+                                        </li>  
+                                        <li>
+                                            <b>PCA on O2PLS scores</b>: 
+                                        </li>  
+                                        <li>
+                                            <b>Sankey diagram</b>: 
+                                        </li>   
+                                    </ul>
+                                </p>
+                            </li>
+                            
+                        </ol>
+                    </p:tab>
+                </p:tabView>  
+            </h:panelGrid>
+        </h:panelGrid>
+    </ui:define>
+</ui:composition>

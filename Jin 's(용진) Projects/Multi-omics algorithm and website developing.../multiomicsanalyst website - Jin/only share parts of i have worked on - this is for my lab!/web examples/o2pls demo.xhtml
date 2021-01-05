@@ -1,0 +1,1350 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:f="http://java.sun.com/jsf/core"
+                xmlns:p="http://primefaces.org/ui"
+                template="/template/_template.xhtml">
+    <ui:define name="pageID">
+        <f:event type="preRenderView" listener="#{procBean.o2plsvariablecheck(0)}"/>
+        <f:event type="preRenderView" listener="#{sessionBean1.registerPage('O2PLS Analysis', '/faces/Secure/analysis/o2pls/o2pls.xhtml')}"></f:event>
+    </ui:define>
+    <ui:define name="content">
+        <p:layout>
+            <p:layoutUnit position="center">
+                <h:panelGrid style="padding: 20px 60px 2px 40px;" > 
+                    <h:form id="resForm">
+                       
+                        <p:selectOneRadio id="rowRadio" value="#{analBean.varcriteriaOpt}" layout="custom">  
+                            <f:selectItem itemLabel="Cross validating adjusted R^2" itemValue="adj" /> 
+                            <f:selectItem itemLabel="Cross validating prediction MSE" itemValue="pred"/>
+                            <f:selectItem itemLabel="Fixed orthogonal + joint" itemValue="fixed"/>
+                            <f:selectItem itemLabel="Pick the numbers for orthogonal and joint" itemValue="smpl"/>
+                            <p:ajax event="change" update=":resForm:integ2 :resForm:integ3 :resForm:integ1 :resForm:integ4 :resForm:integs3 :resForm:integs2 :resForm:integs1" />
+                        </p:selectOneRadio>
+                        
+                        <h:panelGroup>
+                            <p:outputLabel value="O2PLS" style="font-weight: bold; font-size: 16px !important"/>
+                            <p:spacer width="3"/>
+                            <p:graphicImage id="formatIcon0" url="../../../resources/images/ui-help.png"  alt="help" />
+                            <p>Run the variable # pick criteria (four options) to choose the reasonable # of joint and orthogonal components. After, input the reasonable number of variables on the right-hand side, then, click 'O2PLS Run.'</p>
+                            <p>Recommend to have at least 1 variable for joint, orth1, and orth2.</p>
+                            <p>Cross validating prediction MSE takes the most amounts of time to run it, but this is giving you the most "correct" answer. The dafult, Cross validating adjusted R^2 is faster than doing CV on prediction MSE and that still gives you very close answer as CV on prediction MSE. 
+                                <b>The number of features or samples from any of the two omics should be more than the sum of joint and orthogonal components.</b> 
+                               When there are many variables, the options 1 and 2 (CV adjusted R^2 and CV prediction MSE) can be time-consuming, and thus, the options 3 (fixed orthogonal and joint) is a great alternative. Recommend to check the statistics with the option 4 (pick the number) after the option 3.
+                            </p>
+                        </h:panelGroup>
+                       
+                        <h:panelGrid columns="4" style="padding: 0px 10px 10px 20px;" cellpadding="2">
+                           
+                            <h:panelGrid columns="1" style="padding-right: 40px;">
+                                
+                                <h:panelGroup>
+                                    <p:outputLabel value="Variable # Criteria" style="font-weight: bold"/>
+                                    <p:spacer width="3"/>
+                                    <p:graphicImage id="formatIcon3" url="../../../resources/images/ui-help.png"  alt="help" />
+                                </h:panelGroup>
+
+                                <h:panelGrid columns="2">
+                                    
+                                    <p:radioButton for="rowRadio" itemIndex="0"/>
+                                    <p:outputLabel value="1. Cross validating adjusted R^2 (Default)"/>
+
+                                    <p:radioButton for="rowRadio" itemIndex="1"/>
+                                    <p:outputLabel value="2. Cross validating prediction MSE (Slowest, but the most accurate)"/>
+                                </h:panelGrid>
+                                
+                                <h:panelGrid columns="3">
+                                    <h:panelGrid columns="3">
+                                        <h:outputText id="display2" value="Joint Component #:   1~" />
+                                        <p:inputText id="integs2" value="#{procBean.jointc}" style="width:30px" disabled="#{analBean.varcriteriaOpt eq 'fixed'||analBean.varcriteriaOpt eq 'smpl'}"/>
+                                    </h:panelGrid>
+                                    
+                                    <h:panelGrid columns="3">
+                                        <h:outputText id="display3" value="Omics1- Orthogonal Component #:   0~" />
+                                        <p:inputText id="integs3" value="#{procBean.orth1c}" style="width:30px" disabled="#{analBean.varcriteriaOpt eq 'fixed'||analBean.varcriteriaOpt eq 'smpl'}"/>
+                                    </h:panelGrid>
+
+                                    <h:panelGrid columns="3">
+                                        <h:outputText id="display1" value="Omics2- Orthogonal Component #:   0~" />
+                                        <p:inputText id="integs1" value="#{procBean.orth2c}" style="width:30px" disabled="#{analBean.varcriteriaOpt eq 'fixed'||analBean.varcriteriaOpt eq 'smpl'}"/>
+                                    </h:panelGrid>
+                                </h:panelGrid>                                
+                                
+                                <h:panelGrid columns="2">
+                                    <p:radioButton for="rowRadio" itemIndex="2"/>
+                                    <p:outputLabel value="3. Fixed orthogonal + joint"/>
+                                    
+                                    <p:radioButton for="rowRadio" itemIndex="3"/>
+                                    <p:outputLabel value="4. Pick the numbers for orthogonal and joint"/>
+                                </h:panelGrid>
+                                
+                                <h:panelGrid columns="3">
+                                    <h:panelGrid columns="3">
+                                        <h:outputText id="displayRange2" value="Joint Component #: " />
+                                        <p:inputText id="integ2" value="#{procBean.joint}" style="width:30px" disabled="#{analBean.varcriteriaOpt eq 'adj'||analBean.varcriteriaOpt eq 'pred'}"/>
+                                    </h:panelGrid>
+
+                                    <h:panelGrid columns="3">
+                                        <h:outputText id="displayRange3" value="Omics1- Orthogonal Component #: " />
+                                        <p:inputText id="integ3" value="#{procBean.orth1}" style="width:30px" disabled="#{analBean.varcriteriaOpt eq 'adj'||analBean.varcriteriaOpt eq 'pred'}"/>
+                                    </h:panelGrid>
+
+                                    <h:panelGrid columns="3">
+                                        <h:outputText id="displayRange1" value="Omics2- Orthogonal Component #: " />
+                                        <p:inputText id="integ1" value="#{procBean.orth2}" style="width:30px" disabled="#{analBean.varcriteriaOpt eq 'adj'||analBean.varcriteriaOpt eq 'pred'}"/>
+                                    </h:panelGrid>
+                                    
+                                    <h:panelGrid columns="3">
+                                        <h:outputText id="displayRange4" value="# of for-loops: " />
+                                        <p:inputText id="integ4" value="#{procBean.loops}" style="width:30px" disabled="#{analBean.varcriteriaOpt eq 'adj'||analBean.varcriteriaOpt eq 'pred'||analBean.varcriteriaOpt eq 'smpl'}"/>
+                                    </h:panelGrid>
+                                </h:panelGrid>
+                                
+                                <p:commandButton  value="Variable Update" 
+                                              styleClass="subCommandButton" 
+                                              onclick="PF('statusDialog').show()"
+                                              oncomplete="PF('statusDialog').hide();"
+                                              actionListener="#{procBean.o2plsvariablecheck(1)}"   
+                                              update=":img"/>
+                                
+                            </h:panelGrid>
+                            
+                            
+                            
+                            <h:panelGrid style="padding-left: 160px; padding-right: 40px;">
+
+                                <p:spacer width="130" height="1"/> <p:spacer width="1" height="1"/>
+                                <h:panelGrid columns="4">
+                                    <p:outputLabel value="Joint #:" style="font-weight: bold"/>
+                                    <h:panelGrid columns="3">
+                                        <h:outputText id="disRange2" value="Joint Component #: " />
+                                        <p:inputText id="integout2" value="#{procBean.jointb}" style="width:30px" />
+                                    </h:panelGrid>
+                                </h:panelGrid>
+                                
+                                <h:panelGrid columns="4">
+                                    <p:outputLabel value="Omics1- Orthogonal Component #:" style="font-weight: bold"/>
+                                    <h:panelGrid columns="3">
+                                        <h:outputText id="disRange3" value="Omics1- Orthogonal Component #: " />
+                                        <p:inputText id="integout3" value="#{procBean.orth1b}" style="width:30px" />
+                                    </h:panelGrid>
+                                </h:panelGrid>
+
+                                <h:panelGrid columns="4">
+                                    <p:outputLabel value="Omics2- Orthogonal Component #:" style="font-weight: bold"/>
+                                    <h:panelGrid columns="3">
+                                        <h:outputText id="disRange1" value="Omics2- Orthogonal Component #: " />
+                                        <p:inputText id="integout1" value="#{procBean.orth2b}" style="width:30px" />
+                                    </h:panelGrid>
+                                </h:panelGrid>                                    
+                               
+                            </h:panelGrid>
+
+                            
+                            <p:commandButton  value="O2PLS Run" 
+                                              styleClass="subCommandButton" 
+                                              onclick="PF('statusDialog').show()"
+                                              oncomplete="PF('statusDialog').hide();"
+                                              actionListener="#{procBean.o2plsrun()}"   
+                                              update=":ac"/>
+                            
+                        </h:panelGrid>
+                        
+                        
+                        <p:tooltip for="formatIcon0" styleClass="helpTip">
+                            <p>
+                                Make sure that the sum of number of the joint and orthogonal does not exceed the number of features of the filtered dataset. And, pick the most minimum number of variables as long as it stays reasonable. 
+                            </p>
+                        </p:tooltip>
+                        
+                        <p:tooltip for="formatIcon3" styleClass="helpTip">
+                            <p> 
+                                Composition of choosing the number of variables for the joint and orthogonal are at four different levels: 
+                                <ul>
+                                    <li>
+                                        <b>Cross validating adjusted R^2</b>: CV of fold 4. 
+                                    </li>
+                                    <li>
+                                        <b>Cross validating prediction MSE</b>: CV of fold 4.
+                                    </li>
+                                    <li>
+                                        <b>Fixed orthogonal + joint</b>: Pick the # of fixed joint (varying the # of orthogonal) and # of each orthogonal. (varying the # of joint) 
+                                        Choose the # of for-loops (# of joint or # or orthogonal) you want to run. 
+                                        When orthogonal is fixed, the sum of the loops (# of joint) and the number of max(# of orthogonal1, # of orthogonal2) cannot exceed the number of features/samples from any of the two omics.
+                                        When joint and orthogonal1 is fixed, the sum of the max(loops (# of orthogonal2), # of orthogonal1) and the number of joint cannot exceed the number of features/samples from any of the two omics.
+                                        When joint and orthogonal2 is fixed, the sum of the max(loops (# of orthogonal1), # of orthogonal2) and the number of joint cannot exceed the number of features/samples from any of the two omics;
+                                    </li>
+                                    <li>
+                                        <b>Pick the numbers for orthogonal and joint</b>: Pick the reasonable number for joint and orthogonals. (i.e. 2, 3, 3)
+                                    </li>
+                                </ul>
+                            </p>
+                        </p:tooltip>
+                    </h:form>
+                </h:panelGrid>
+
+                <hr style="height: 12px; border: 0;box-shadow: inset 0 12px 12px -12px rgba(0, 0, 0, 0.5); width:100%; min-width: 1000px"/>
+                <h:panelGrid style="padding-left: 40px; padding-top: 20px; width: 100%" > 
+                    <h2>Plots for the variable update</h2>
+                    <p:tabView id="img" style="border:none;width:1550px; text-align: center">
+                        
+                        <p:tab title = "adj R^2">
+                            <h:panelGrid style="padding-top: 5px">  
+                                <div style="text-align: center; padding-bottom: 4px;">
+                                    <b>This tab corresponds to the option: "Cross validating adjusted R^2". There is no hard rule to choose the number of variables; however, it is recommended to choose one with either the high prediction power (omics1_joint_explained_by_omics2_joint or omics2_joint_explained_by_omics1_joint) or the small MSE. (high prediction power does not guarantee small MSE)  See the tooltip to see what each variable stands for.</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>Three plots of 'MSE,' 'omics1_joint_explained_by_omics2_joint' and 'omics2_joint_explained_by_omics1_joint' visually helps users choose the right number of variables for joint and orthogonal components</b>
+                                </div>
+                                <h:panelGrid columns="2" style="padding-left: 75%; text-align: right">
+                                    <p:commandLink   id="img1" 
+                                                     actionListener="#{sessionBean1.graphicsLnk_action('adj_table')}" 
+                                                     oncomplete="PF('graphDialog').show()"> 
+                                        <i class="fa fa-download fa-2x" ></i>
+                                    </p:commandLink> 
+                                    <p:graphicImage id="boxIcon" url="../../../resources/images/ui-help.png" alt="help"/>
+                                    <p:tooltip for="boxIcon" styleClass="helpTip">
+                                        <p>
+                                            Table for adjusted R-square.
+                                             <ul>
+                                                <li>
+                                                    <b>Joint#</b>: # of joint;
+                                                </li>
+                                                <li>
+                                                    <b>Orthogonal_omics1#</b>: # of orthogonal omics1;
+                                                </li>
+                                                <li>
+                                                    <b>Orthogonal_omics2</b>: # of orthogonal omics2;
+                                                </li>
+                                                <li>
+                                                    <b>omics1_joint_explained_by_omics2_joint</b>: joint omics1 that can be explained by omics2 (always bigger than X_by_Y);
+                                                </li>
+                                                <li>
+                                                    <b>omics2_joint_explained_by_omics1_joint</b>: joint omics2 that can be explained by omics1 (always bigger than Y_by_X);
+                                                </li>      
+                                                <li>
+                                                    <b>MSE</b>: Mean square error;
+                                                </li>                                                   
+                                            </ul>
+                                        </p>
+                                        <p>The plot corresponds to values of 'MSE,' 'omics1_joint_explained_by_omics2_joint' and 'omics2_joint_explained_by_omics1_joint.'</p>
+                                    </p:tooltip>
+                                </h:panelGrid>
+                                <p:graphicImage value="#{sessionBean1.getCurrentImage('adj_table')}" />  
+                                
+                                <h:panelGrid columns="3" style="text-align: right">  
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('adj_tableplot1')}" /> 
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('adj_tableplot2')}" /> 
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('adj_tableplot3')}" /> 
+                                </h:panelGrid>   
+                            </h:panelGrid>
+                        </p:tab>
+                        
+                        <p:tab title = "prediction MSE">
+                            <h:panelGrid style="padding-top: 5px">  
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>This tab corresponds to the option:"Cross validating prediction MSE". This only gives you one best choice of a combination of the number of joint and orthogonal variables, based on the smallest prediction MSE. The way to calculate MSE is different from the one in the "adjusted R^2". See the tooltip to see what each variable stands for.</b>
+                                </div>
+                                <h:panelGrid columns="2" style="padding-left: 75%; text-align: right">
+
+                                    <p:commandLink   id="img2" 
+                                                     actionListener="#{sessionBean1.graphicsLnk_action('prediction_table')}" 
+                                                     oncomplete="PF('graphDialog').show()"> 
+                                        <i class="fa fa-download fa-2x" ></i>
+                                    </p:commandLink> 
+                                    <p:graphicImage id="boxIcon2" url="../../../resources/images/ui-help.png" alt="help"/>
+                                    <p:tooltip for="boxIcon2" styleClass="helpTip">
+                                        <p>
+                                            Table for prediction MSE.
+                                             <ul>
+                                                <li>
+                                                    <b>Joint#</b>: # of joint;
+                                                </li>
+                                                <li>
+                                                    <b>Orthogonal_omics1#</b>: # of orthogonal omics1;
+                                                </li>
+                                                <li>
+                                                    <b>Orthogonal_omics2</b>: # of orthogonal omics2;
+                                                </li>
+                                                <li>
+                                                    <b>omics1_joint_explained_by_omics2_joint</b>: joint omics1 that can be explained by omics2 (always bigger than X_by_Y);
+                                                </li>
+                                                <li>
+                                                    <b>omics2_joint_explained_by_omics1_joint</b>: joint omics2 that can be explained by omics1 (always bigger than Y_by_X);
+                                                </li>      
+                                                <li>
+                                                    <b>MSE</b>: Mean square error;
+                                                </li>                                                    
+                                            </ul>
+                                        </p>
+                                    </p:tooltip>
+                                </h:panelGrid>
+                                <p:graphicImage value="#{sessionBean1.getCurrentImage('prediction_table')}" />   
+                            </h:panelGrid>
+                        </p:tab>
+                        
+                        <p:tab title = "pick numbers">
+                            <h:panelGrid style="padding-top: 5px">
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>This tab corresponds to the option:"Pick the numbers for orthogonal and joint". This option is recommended to be run after the option "Fixed orthogonal + joint", to check variations and prediction power of the components users have in mind. See the tooltip to see what each variable stands for.</b>
+                                </div>
+                                <h:panelGrid columns="2" style="padding-left: 71%; text-align: right">
+
+                                    <p:commandLink   id="img3" 
+                                                     actionListener="#{sessionBean1.graphicsLnk_action('userpick_table')}" 
+                                                     oncomplete="PF('graphDialog').show()"> 
+                                        <i class="fa fa-download fa-2x" ></i>
+                                    </p:commandLink> 
+                                    <p:graphicImage id="boxIcon3" url="../../../resources/images/ui-help.png" alt="help"/>
+                                    <p:tooltip for="boxIcon3" styleClass="helpTip">
+                                        <p>
+                                            Table for # of variables picked by the user.
+                                             <ul>
+                                                <li>
+                                                    <b>Joint#</b>: # of joint;
+                                                </li>
+                                                <li>
+                                                    <b>Orthogonal_omics1#</b>: # of orthogonal omics1;
+                                                </li>
+                                                <li>
+                                                    <b>Orthogonal_omics2</b>: # of orthogonal omics2;
+                                                </li>
+                                                <li>
+                                                    <b>omics1_joint_explained_by_omics2_joint</b>: joint omics1 that can be explained by omics2 (always bigger than X_by_Y);
+                                                </li>
+                                                <li>
+                                                    <b>omics2_joint_explained_by_omics1_joint</b>: joint omics2 that can be explained by omics1 (always bigger than Y_by_X);
+                                                </li>                                                       
+                                            </ul>
+                                        </p>
+                                    </p:tooltip>
+                                </h:panelGrid>
+                                <p:graphicImage value="#{sessionBean1.getCurrentImage('userpick_table')}" />   
+                            </h:panelGrid>
+                        </p:tab>
+                        
+                        <p:tab title = "Fixed numbers: Joint1 prediction/orth fixed">
+                            <h:panelGrid style="padding-top: 5px">  
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>This tab corresponds to the option:"Fixed orthogonal + joint". The plot shows how much joint component(s) for omics1 would be sufficient to capture the most of variability that can be captured in both -omics, when both orthogonals components are fixed. It is likely for the users to see higher SSQ for more joint components, but it is harder to make the right interpretations with more joint components, so there is a trade-off. Recommend to look for an "elbow" of the plot. See the tooltip to see the details.</b>
+                                </div>
+                                <h:panelGrid columns="2" style="padding-left: 70%; text-align: right">
+                                    <p:commandLink   id="img5" 
+                                                     actionListener="#{sessionBean1.graphicsLnk_action('jo1pre_orthfix')}" 
+                                                     oncomplete="PF('graphDialog').show()"> 
+                                        <i class="fa fa-download fa-2x" ></i>
+                                    </p:commandLink> 
+                                    <p:graphicImage id="boxIcon5" url="../../../resources/images/ui-help.png" alt="help"/>
+                                    <p:tooltip for="boxIcon5" styleClass="helpTip">
+                                        <p>
+                                            This is when the number of two omics orthogonals are fixed, and the plot is showing the sum of squares (SSQ) of prediction of the Omics1 based on joint Omics2 scores.
+                                        </p>
+                                    </p:tooltip>
+
+                                </h:panelGrid>
+                                <h:panelGrid style="padding-left: 35%">
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('jo1pre_orthfix')}" />  
+                                </h:panelGrid>
+                            </h:panelGrid>
+                        </p:tab>
+                        
+                        <p:tab title = "Fixed numbers: Joint2 prediction/orth fixed">
+                            <h:panelGrid style="padding-top: 5px"> 
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>his tab corresponds to the option:"Fixed orthogonal + joint". The plot shows how much joint component(s) for omics2 would be sufficient to capture the most of variability that can be captured in both -omics, when both orthogonals components are fixed. It is likely for the users to see higher SSQ for more joint components, but it is harder to make the right interpretations with more joint components, so there is a trade-off. Recommend to look for an "elbow" of the plot. See the tooltip to see the details.</b>
+                                </div>
+                                <h:panelGrid columns="2" style="padding-left: 70%; text-align: right">
+                                    <p:commandLink   id="img4" 
+                                                     actionListener="#{sessionBean1.graphicsLnk_action('jo2pre_orthfix')}" 
+                                                     oncomplete="PF('graphDialog').show()"> 
+                                        <i class="fa fa-download fa-2x" ></i>
+                                    </p:commandLink> 
+                                    <p:graphicImage id="boxIcon4" url="../../../resources/images/ui-help.png" alt="help"/>
+                                    <p:tooltip for="boxIcon4" styleClass="helpTip">
+                                        <p>
+                                            This is when the number of two omics orthogonals are fixed, and the plot is showing the sum of squares (SSQ) of prediction of the Omics2 based on joint Omics1 scores.
+                                        </p>
+                                    </p:tooltip>
+                                </h:panelGrid>
+                                <h:panelGrid style="padding-left: 35%">
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('jo2pre_orthfix')}" />   
+                                </h:panelGrid>
+                            </h:panelGrid>
+                        </p:tab>
+
+                        <p:tab title = "Fixed numbers: Variation Orth1/joint + Orth2 fixed">
+                            <h:panelGrid style="padding-top: 5px"> 
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>This tab corresponds to the option:"Fixed orthogonal + joint". The plot shows how much orthogonal component(s) for omics1 would be sufficient to capture the most of variability that can be captured in both -omics, when joint and orthogonal for omics2 are fixed. See the tooltip to see the details.</b>
+                                </div>
+                                <h:panelGrid columns="2" style="padding-left: 70%; text-align: right">
+                                    <p:commandLink   id="img7" 
+                                                     actionListener="#{sessionBean1.graphicsLnk_action('orth1_joorth2fix')}" 
+                                                     oncomplete="PF('graphDialog').show()"> 
+                                        <i class="fa fa-download fa-2x" ></i>
+                                    </p:commandLink> 
+                                    <p:graphicImage id="boxIcon7" url="../../../resources/images/ui-help.png" alt="help"/>
+                                    <p:tooltip for="boxIcon7" styleClass="helpTip">
+                                        <p>
+                                            This is when the number of joint and orthogonal2 are fixed, and the plot is showing the sum of squares (SSQ) of orthogonal part in omics1 per each component change.
+                                        </p>
+                                    </p:tooltip>
+                                </h:panelGrid>
+                                <h:panelGrid style="padding-left: 35%">
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('orth1_joorth2fix')}" /> 
+                                </h:panelGrid>    
+                            </h:panelGrid>
+                        </p:tab>
+                        
+                        <p:tab title = "Fixed numbers: Variation Orth2/joint + Orth1 fixed">
+                            <h:panelGrid style="padding-top: 5px">  
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>This tab corresponds to the option:"Fixed orthogonal + joint". The plot shows how much orthogonal component(s) for omics2 would be sufficient to capture the most of variability that can be captured in both -omics, when joint and orthogonal for omics1 are fixed. See the tooltip to see the details.</b>
+                                </div>
+                                <h:panelGrid columns="2" style="padding-left: 70%; text-align: right">
+                                    <p:commandLink   id="img6" 
+                                                     actionListener="#{sessionBean1.graphicsLnk_action('orth2_joorth1fix')}" 
+                                                     oncomplete="PF('graphDialog').show()"> 
+                                        <i class="fa fa-download fa-2x" ></i>
+                                    </p:commandLink> 
+                                    <p:graphicImage id="boxIcon6" url="../../../resources/images/ui-help.png" alt="help"/>
+                                    <p:tooltip for="boxIcon6" styleClass="helpTip">
+                                        <p>
+                                            This is when the number of joint and orthogonal1 are fixed, and the plot is showing the sum of squares (SSQ) of orthogonal part in omics2 per each component change.
+                                        </p>
+                                    </p:tooltip>
+                                </h:panelGrid>
+                                <h:panelGrid style="padding-left: 35%">
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('orth2_joorth1fix')}" />   
+                                </h:panelGrid>   
+                            </h:panelGrid>
+                        </p:tab>
+                    </p:tabView>
+                </h:panelGrid>
+                
+                
+
+                <hr style="height: 12px; border: 0;box-shadow: inset 0 12px 12px -12px rgba(0, 0, 0, 0.5); width:100%; min-width: 1000px"/>
+                <h:panelGrid style="padding-left: 40px; padding-top: 10px; width: 100%">
+                    <h2>Plots for O2PLS run</h2>
+                    <p:tabView id="ac" style="width: 1350px; text-align: center">
+                        <p:tab title = "Variation tables">
+                            <h:panelGrid style="padding-top: 5px" cellspacing="10px" styleClass="panelColumns">  
+                                <div style="text-align: center; padding-bottom: 20px;">
+                                    <b>The table shows how much variations each type (joint, orthogonal, and noise) of two omics have after O2PLS run with specific variable numbers the user picked. The higher value in joint, the more the two omics are intersected together.</b>
+                                </div>
+                                <h3>Absolute and relative variations summary</h3>
+                                <h:panelGrid columns="2" style="text-align: right; padding-left: 60%">
+                                    <p:commandLink   id="resPane" 
+                                                     actionListener="#{sessionBean1.graphicsLnk_action('main_table1')}" 
+                                                     oncomplete="PF('graphDialog').show()"> 
+                                        <i class="fa fa-download fa-2x" ></i>
+                                    </p:commandLink> 
+                                    <p:graphicImage id="boxIcons1" url="../../../resources/images/ui-help.png" alt="help"/>
+                                    <p:tooltip for="boxIcons1" styleClass="helpTip">
+                                        <p>
+                                            It shows how much variations each of joint, orthogonal, and noise is taking. 
+                                            It has both absolute and relative values. The relative Joint + orthogonal + noise should be around 100.
+                                        </p>
+                                    </p:tooltip>
+                                </h:panelGrid>
+                                <p:graphicImage value="#{sessionBean1.getCurrentImage('main_table1')}" />  
+                                
+                                <div style="text-align: center; padding-bottom: 40px;">
+                                    <b>How much each joint component weights in each omics.</b>
+                                </div>
+                                <h3>Joint variations per component</h3>
+                                <h:panelGrid columns="2" style="text-align: right; padding-left: 60%">
+                                    <p:commandLink   id="resPane2" 
+                                                     actionListener="#{sessionBean1.graphicsLnk_action('main_table2')}" 
+                                                     oncomplete="PF('graphDialog').show()"> 
+                                        <i class="fa fa-download fa-2x" ></i>
+                                    </p:commandLink> 
+                                    <p:graphicImage id="boxIcons2" url="../../../resources/images/ui-help.png" alt="help"/>
+                                    <p:tooltip for="boxIcons2" styleClass="helpTip">
+                                        <p>
+                                            This table tells you how much variations each joint component takes for each omics. The last row has the values of variations for entire joint components.
+                                        </p>
+                                    </p:tooltip>
+                                </h:panelGrid>
+                                <p:graphicImage value="#{sessionBean1.getCurrentImage('main_table2')}" /> 
+                            </h:panelGrid>
+                        </p:tab>
+                        
+                        
+                        <p:tab title = "SSQ">
+                            <h:form id="resFormxx">
+                            <h:panelGrid id="piePane" columns="1" styleClass="panelColumns" style="width: 300px; text-align: center; padding-left: 40px; padding-top: 20px">  
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>For visual purposes, the plot will display top 20 Sum of squares (SSQ) by default.</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>The plots have stacked values, meaning that the values of each type for each variable are not cumulative. The tables are ordered based on high SSQ.</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>Sum of squares (SSQ) for each variable can give some insights how each variable is important for different types of variations (joint, ortho, and noise). When it is not normalized, one outlier can lead us to bias understandings. All variables are normalized to 1 in normalized plot. The normalized SSQ gives your better and easier interpretation of how much joint, orthogonal, and noise each variable takes. However, you cannot directly compare one variable to the other in normalized plot. As summary, default plot is useful when you compare amongst variables, and the normalized plot is useful if you want to inspect a specific variable.</b>
+                                </div>
+                                <div style="text-align: left; padding-bottom: 20px;">
+                                    The options:
+                                    <ul>
+                                        <li>Omics: SSQ of either omics1 or omics2.</li>
+                                        <li>Table values: Upon clicking update, list out the names of the variables and SSQ values, ordered by either joint only, orthogonal only, or the sum of joint, orthogonal and noise.</li>
+                                        <li>Top n variables: Upon clicking update, how many names of the variables and SSQ values list out on the table. The maximum input is the number of variables.</li>
+                                    </ul>
+                                </div>
+                                <h3 style="text-align: left; padding-left: 20%;">SSQ: Default</h3>
+                                <h:panelGrid columns="2" style="text-align: right">
+                                    <h:panelGrid columns="2" style="text-align: left; padding-left: 70%">
+                                        <p:commandLink   id="plot1" 
+                                                         actionListener="#{sessionBean1.graphicsLnk_action('main_plot1')}" 
+                                                         oncomplete="PF('graphDialog').show()"> 
+                                            <i class="fa fa-download fa-2x" ></i>
+                                        </p:commandLink> 
+                                        <p:graphicImage id="plotIcon1" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon1" styleClass="helpTip">
+                                            <p>
+                                                It shows Sum of squares (SSQ) for each variable can gives some insights how each variable is important for different types of variations (joint, ortho, and noise). 
+                                            </p>
+                                            <p>
+                                                The default plot is the top 20 variables having the highest entire SSQ (the sum of joint, orthogonal and noise) from omics1.
+                                            </p>
+                                        </p:tooltip>
+                                    </h:panelGrid>
+                                    <h:outputText value="" />
+                                    
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot1')}" /> 
+                                    <h:panelGrid style="width: 700px;">
+                                        <h:panelGrid columns="3" style="padding-left: 20%">
+                                            <h:outputText value="Omics:" style="font-weight: bold; padding-left: 30px; width: 200px"/>
+                                            <p:selectOneMenu id="grp8" value="#{sessionBean1.omicsChoice}" >
+                                                    <f:selectItem itemLabel="Omics 1" itemValue="1" />
+                                                    <f:selectItem itemLabel="Omics 2" itemValue="2" />
+                                            </p:selectOneMenu>
+                                            <h:outputText value="" style="color:grey"/>
+
+                                            <h:outputText value="Table values:" style="font-weight: bold; width: 200px"/>
+                                            <p:selectOneMenu id="grpxx" value="#{sessionBean1.tableChoice}" style="width:90px;">
+                                                    <f:selectItem itemLabel="Joint only" itemValue="1" />
+                                                    <f:selectItem itemLabel="Orthogonal only" itemValue="2" />
+                                                    <f:selectItem itemLabel="Entire" itemValue="3" />
+                                            </p:selectOneMenu>
+                                            <h:outputText value="" style="color:grey"/>
+
+                                            <h:outputText value="Top n variables: " style="font-weight: bold; " />
+                                            <p:inputText id="txt4" value="#{sessionBean1.tableN}" style="width:90px;"/>
+                                            <h:outputText value="(2 ~ # variable)" style="color:grey"/>
+                                        </h:panelGrid>
+                                        <h:panelGrid style="width: 400px;">
+                                            <h:panelGrid style="padding-left: 55%; padding-top: 20px;">
+                                                <p:commandButton value="Update" update=":ac:resFormxx" actionListener="#{procBean.updateSSQTable()}"/>
+                                            </h:panelGrid>
+                                        </h:panelGrid>
+                                    </h:panelGrid>
+                                    
+                                </h:panelGrid>
+                                <h:panelGrid columns="2" style="text-align: center">
+                                    <h:panelGrid>
+                                        <h3>SSQ: Normalized</h3> 
+                                        <h:panelGrid columns="2" style="text-align: right; padding-left: 70%;">
+                                            <p:commandLink  id="plot2" 
+                                                             actionListener="#{sessionBean1.graphicsLnk_action('main_plot2')}" 
+                                                             oncomplete="PF('graphDialog').show()"> 
+                                                <i class="fa fa-download fa-2x" ></i>
+                                            </p:commandLink> 
+                                            <p:graphicImage id="plotIcon2" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon2" styleClass="helpTip">
+                                            <p>
+                                                This is normalized plot of SSQ. It shows how much joint, orthogonal, and noise each variable takes when each variable is normalized to 1. (In here, you cannot directly compare one variable to the other)
+                                            </p>
+                                            <p>
+                                                The default plot is the top 20 variables having the highest entire SSQ (the sum of joint, orthogonal and noise) from omics1.
+                                            </p>
+                                        </p:tooltip>
+                                        </h:panelGrid>
+                                        <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot2')}" /> 
+                                    </h:panelGrid>
+                                    
+                                    <h:panelGrid>
+                                        <h:panelGrid columns="2" style="padding-left: 65%;text-align: right">
+                                            <p:commandLink   id="plotxx" 
+                                                             actionListener="#{sessionBean1.graphicsLnk_action('main_tablessq')}" 
+                                                             oncomplete="PF('graphDialog').show()"> 
+                                                <i class="fa fa-download fa-2x" ></i>
+                                            </p:commandLink> 
+                                            <p:graphicImage id="plotIconxx" url="../../../resources/images/ui-help.png" alt="help"/>
+                                            <p:tooltip for="plotIconxx" styleClass="helpTip">
+                                                <p>
+                                                    Top n variables either from the sum of joint + orth + noise SSQ or joint SSQ.
+                                                </p>
+                                                <p>
+                                                    Recommend to keep it below 30 variables.
+                                                </p>
+                                            </p:tooltip>
+                                        </h:panelGrid>
+                                        <p:graphicImage value="#{sessionBean1.getCurrentImage('main_tablessq')}"/>
+                                    </h:panelGrid>
+                                    
+                                </h:panelGrid>
+                            </h:panelGrid> 
+                            </h:form>    
+                        </p:tab>   
+
+                        
+                        <p:tab title = "Loading">
+                            <h:form id="resFormxx2">
+                            <h:panelGrid id="piePane2" columns="1" styleClass="panelColumns" style="width: 500px; text-align: center; padding-left: 40px; padding-top: 20px">    
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>For visual purposes, the loading plot from joint component 1 and orthogonal component 1 of omics 1 will display the top 20 variables of the sum of the absolute loading values of the joint component 1 and orthogonal component 1, by default.</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>The plots have stacked values, meaning that the values of each type for each variable are not cumulative. The tables are ordered based on high absolute loading values. Based on the heights and directions of variables, the user can tell the significance of each variable. It is helpful to see how the signs/directions are different amongst variables, since this tells you that the variables with different signs are associated with the score in opposite directions. If the user has the prior knowledge of the groups and clusters of variables, he/she might be able to get ideas which cluster/group is having high/low loadings to the corresponding score. Furthermore, outliers can be spotted as well from the loading plot and table. The univariate correlation is calculated on top n significant features with either Pearson or Spearman.</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>*The difference between SSQ and Loading: SSQ is calculated by multiplying entire scores by loadings (then, the dimension would be the same as the original dataset), and sqaure them and add by variables. So, SSQ is basically dividing the original dataset with joint, orthogonal, and noise, and square each element and sum them up. Loading stands for the importance to each variable to the "corresponding" subspace/score. So, this tells you how each variable is important on specific score. Furthermore, loading can give you in which direction (positive and negative) the variable is associated with the score.</b>
+                                </div>
+                                <div style="text-align: left; padding-bottom: 20px;">
+                                    The options:
+                                    <ul>
+                                        <li>Omics: Loading of either omics1 or omics2.</li>
+                                        <li>Loading#: Corresponding joint loading on the y-axis of the plot. The max input is the number of joint scores.</li>
+                                        <li>Orthogonal# (Omics1): Corresponding orthogonal loading on the y-axis of the plot. The max input is the number of omics 1 orthogonal scores. Do not have to choose the same number as the joint loading. Will be disabled if omics 2 option picked.</li>
+                                        <li>Orthogonal# (Omics2): Corresponding orthogonal loading on the y-axis of the plot. The max input is the number of omics 2 orthogonal scores. Do not have to choose the same number as the joint loading. Will be disabled if omics 1 option picked.</li>
+                                        <li>Top n variables: Upon clicking update, how many names, absolute and original values of loadings (joint only, orthogonal only or both joint and orthogonal) list out on the table. The maximum input is the number of variables.</li>
+                                        <li>Table values: Upon clicking update, list out the names, absolute and original values of loadings, ordered by either joint only, orthogonal only, or the sum of joint and orthogonal.</li>
+                                        <li>Correlation: Two options for correlation measurements.</li>
+                                    </ul>
+                                </div>
+                                <h3 style="text-align: left; padding-left: 19%;">Joint loading plot</h3>
+                                <h:panelGrid columns="2" style="text-align: right"> 
+                                    <h:panelGrid columns="2" style="padding-left: 70%; text-align: right">
+                                        <p:commandLink   id="plot3" 
+                                                         actionListener="#{sessionBean1.graphicsLnk_action('main_plot3')}" 
+                                                         oncomplete="PF('graphDialog').show()"> 
+                                            <i class="fa fa-download fa-2x" ></i>
+                                        </p:commandLink> 
+                                        <p:graphicImage id="plotIcon3" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon3" styleClass="helpTip">
+                                            <p>
+                                                Based on the heights and directions of variables, the user can tell the significance of each variable. It is helpful to see how the signs/directions are different amongst variables, since this tells you that the variables with different signs are associated with the score in opposite directions.
+                                            </p>
+                                            <p>
+                                                Remember the loadings stand for the importance to each variable to the corresponding subspace/score. These diagrams can also help on: for example, if you have the prior knowledge of the groups and clusters of the genes (i.e. brain tumor related), you might be able to get some ideas which group is having high/low loadings. Furthermore, outliers can be spotted. In here, pick the significant variables for each loading of the type (joint or orthogonal) you are interested in.
+                                            </p>
+                                            <p>
+                                                The default plot is the top 20 variables having the highest sum of absolute value of joint and orthogonal, from omics1 first joint loading.
+                                            </p>
+                                        </p:tooltip>
+                                    </h:panelGrid>
+                                    <h:outputText value="" />
+                                    
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot3')}" />   
+                                    <h:panelGrid style="width: 500px;">
+                                        <h:panelGrid columns="3" style="padding-left: 25%;">
+                                            <h:outputText value="Omics:" style="font-weight: bold; padding-left: 30px;"/>
+                                            <p:selectOneMenu id="grp9" value="#{sessionBean1.omicsChoice}" >
+                                                    <f:selectItem itemLabel="Omics 1" itemValue="1" />
+                                                    <f:selectItem itemLabel="Omics 2" itemValue="2" />
+                                                    <p:ajax event="change" update=":ac:resFormxx2:txt7 :ac:resFormxx2:txt8" />
+                                            </p:selectOneMenu>
+                                            <h:outputText value="" style="color:grey"/>
+                                            
+                                            <h:outputText value="Loading#:" style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt6" value="#{sessionBean1.loadingChoice}" style="width:20px;" />
+                                            <h:outputText value="(1 ~ joint comp)" style="color:grey"/>
+
+                                            <h:outputText value="Orthogonal# (Omics1): " style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt7" value="#{sessionBean1.loadingChoice2}" style="width:20px" disabled="#{sessionBean1.omicsChoice eq '2'}"/>
+                                            <h:outputText value="(0 ~ orth omics1 comp)" style="color:grey"/>
+
+                                            <h:outputText value="Orthogonal# (Omics2): " style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt8" value="#{sessionBean1.loadingChoice3}" style="width:20px" disabled="#{sessionBean1.omicsChoice eq '1'}"/>
+                                            <h:outputText value="(0 ~ orth omics2 comp)" style="color:grey"/>
+
+                                            <h:outputText value="Top n variables: " style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt5" value="#{sessionBean1.tableN}" style="width:20px" />
+                                            <h:outputText value="(1 ~ # variable)" style="color:grey"/>
+
+                                            <h:outputText value="Table values:" style="font-weight: bold;"/>
+                                            <p:selectOneMenu id="grpxx2" value="#{sessionBean1.tableChoice}" >
+                                                <f:selectItem itemLabel="Joint" itemValue="1" />
+                                                <f:selectItem itemLabel="Orth" itemValue="2" />
+                                                <f:selectItem itemLabel="Joint + Orth" itemValue="3" />
+                                            </p:selectOneMenu>  
+                                            <h:outputText value="" style="color:grey"/>
+                                            
+                                            <h:outputText value="Correlation:" style="font-weight: bold;"/>
+                                            <p:selectOneMenu id="grpxx2b" value="#{sessionBean1.corChoice}" >
+                                                <f:selectItem itemLabel="Pearson" itemValue="1" />
+                                                <f:selectItem itemLabel="Spearman" itemValue="2" />
+                                            </p:selectOneMenu>  
+                                            <h:outputText value="" style="color:grey"/>
+                                        </h:panelGrid>
+                                        <h:panelGrid style="width: 400px;">
+                                            <h:panelGrid style="padding-left: 55%; padding-top: 20px;">
+                                                <p:commandButton value="Update" update=":ac:resFormxx2" actionListener="#{procBean.updateLoadingTable()}"/>
+                                            </h:panelGrid>
+                                        </h:panelGrid>        
+                                    </h:panelGrid> 
+                                </h:panelGrid>  
+                                <h:panelGrid columns="4" style="text-align: right">
+                                    <h:panelGrid>
+                                        <h:panelGrid columns="2" style="padding-left: 65%; text-align: right">
+                                            <p:commandLink   id="plotxx2b" 
+                                                             actionListener="#{sessionBean1.graphicsLnk_action('main_tableloadingcor')}" 
+                                                             oncomplete="PF('graphDialog').show()"> 
+                                                <i class="fa fa-download fa-2x" ></i>
+                                            </p:commandLink> 
+                                            <p:graphicImage id="plotIconxx2b" url="../../../resources/images/ui-help.png" alt="help"/>
+                                            <p:tooltip for="plotIconxx2b" styleClass="helpTip">
+                                                <p>
+                                                    Univariate correlations (Pearson or Spearman) of significant features.
+                                                </p>
+                                            </p:tooltip>
+                                        </h:panelGrid>
+                                        <p:graphicImage value="#{sessionBean1.getCurrentImage('main_tableloadingcor')}"/>
+                                    </h:panelGrid>
+                                    
+                                     <h:panelGrid>
+                                        <h:panelGrid columns="2" style="padding-left: 65%; text-align: right">
+                                            <p:commandLink   id="plotxx2" 
+                                                             actionListener="#{sessionBean1.graphicsLnk_action('main_tableloading')}" 
+                                                             oncomplete="PF('graphDialog').show()"> 
+                                                <i class="fa fa-download fa-2x" ></i>
+                                            </p:commandLink> 
+                                            <p:graphicImage id="plotIconxx2" url="../../../resources/images/ui-help.png" alt="help"/>
+                                            <p:tooltip for="plotIconxx2" styleClass="helpTip">
+                                                <p>
+                                                    Top n variables either from 'both sum of absolute values of joint and orthogonal' or 'sum of absolute joint only' variables.
+                                                </p>
+                                                <p>
+                                                    Recommend to keep it below 30 variables.
+                                                </p>
+                                            </p:tooltip>
+                                        </h:panelGrid>
+                                        <p:graphicImage value="#{sessionBean1.getCurrentImage('main_tableloading')}"/>
+                                    </h:panelGrid>
+                                </h:panelGrid>  
+
+                            </h:panelGrid> 
+                            </h:form> 
+                        </p:tab>                   
+                        
+                        
+       
+                        
+                        <p:tab title = "Loading v.s. Loading">
+                            <h:form id="resFormxx3">
+                            <h:panelGrid id="piePane3" columns="1" styleClass="panelColumns" style="width: 500px; text-align: center; padding-left: 40px; padding-top: 20px">    
+                                <div style="text-align: center; padding-bottom: 40px;">
+                                    <b>The plot will not be displayed if there is only one joint component.</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>The tables are ordered based on high Euclidean distance. This compares joint loading v.s. joint loading from the same dataset (you cannot compare joint loadings from the two different datasets as the features are different). The plot shows relative importance of each variable to corresponding score in omics dataset, based on Euclidean distance. In here, pick the significant variables for each loading. This tab is basically doing the same thing as the "Loading" tab, but shows 2-dimension by plotting two joint loadings. However, as the two joint scores are not related (refer to "Score and Metadata"), this tab might not significantly improve your understandings.</b>
+                                </div>
+                                <div style="text-align: left; padding-bottom: 20px;">
+                                    The options:
+                                    <ul>
+                                        <li>Omics: Loading of either omics1 or omics2.</li>
+                                        <li>Top n variables: Upon clicking update, how many names, Euclidean distance of the variable from the origin, loading values for the scores corresponding to both x-axis and y-axis list out on the table. Corresponding top n variables also show on the plot. The maximum input is the number of variables.</li>
+                                        <li>X-axis: Corresponding joint loading on the x-axis of the plot. The max input is the number of joint scores.</li>
+                                        <li>Y-axis: Corresponding joint loading on the y-axis of the plot. The max input is the number of joint scores.</li>
+                                    </ul>
+                                </div>
+                                <h3 style="text-align: left; padding-left: 19%;">Joint loading v.s. loading</h3>
+                                <h:panelGrid columns="2" style="text-align: right">     
+                                    <h:panelGrid columns="2" style="padding-left: 80%; text-align: right">
+                                        <p:commandLink   id="plot4" 
+                                                         actionListener="#{sessionBean1.graphicsLnk_action('main_plot4')}" 
+                                                         oncomplete="PF('graphDialog').show()"> 
+                                            <i class="fa fa-download fa-2x" ></i>
+                                        </p:commandLink> 
+                                        <p:graphicImage id="plotIcon4" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon4" styleClass="helpTip">
+                                            <p>
+                                               This displays the joint loading v.s. joint loading from the same dataset. The plot indicates relative importance of each variable to corresponding component in omics dataset in two dimensions. 
+                                            </p>
+                                            <p>
+                                                The default plot is the omics1 joint component 1 and 2.
+                                            </p>
+                                        </p:tooltip>
+                                    </h:panelGrid>
+                                    <h:outputText value="" style="color:grey"/>
+                                
+                                
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot4')}" />   
+                                    <h:panelGrid style="width: 450px;">
+                                        <h:panelGrid columns="3" style="padding-left: 30%;">
+                                            <h:outputText value="Omics:" style="font-weight: bold; padding-left: 30px;"/>
+                                            <p:selectOneMenu id="grp82" value="#{sessionBean1.omicsChoice}" >
+                                                    <f:selectItem itemLabel="Omics 1" itemValue="1" />
+                                                    <f:selectItem itemLabel="Omics 2" itemValue="2" />
+                                            </p:selectOneMenu>
+                                            <h:outputText value="" style="color:grey"/>
+                                            
+                                            <h:outputText value="Top n variables: " style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt42" value="#{sessionBean1.tableN}" style="width:20px" />
+                                            <h:outputText value="(1 ~ # variable)" style="color:grey"/>
+                                          
+                                            <h:outputText value="X-axis:" style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt62" value="#{sessionBean1.loadingX}" style="width:20px;" />
+                                            <h:outputText value="(1 ~ joint comp)" style="color:grey"/>
+
+                                            <h:outputText value="Y-axis:" style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt63" value="#{sessionBean1.loadingY}" style="width:20px;" />
+                                            <h:outputText value="(1 ~ joint comp)" style="color:grey"/>
+                                        </h:panelGrid>
+                                            
+                                        <h:panelGrid style="width: 400px;">
+                                            <h:panelGrid style="padding-left: 55%; padding-top: 20px;">
+                                                <p:commandButton value="Update" update=":ac:resFormxx3" actionListener="#{procBean.updateCompLoadingTable()}"/>
+                                            </h:panelGrid>
+                                        </h:panelGrid>      
+                                    </h:panelGrid>    
+                                    
+                                    <h:outputText value="" style="color:grey"/> 
+                                    <h:panelGrid>
+                                        <h:panelGrid columns="2" style="padding-left: 65%; text-align: right">
+                                            <p:commandLink   id="plotxx3" 
+                                                             actionListener="#{sessionBean1.graphicsLnk_action('main_tableloadingcomp')}" 
+                                                             oncomplete="PF('graphDialog').show()"> 
+                                                <i class="fa fa-download fa-2x" ></i>
+                                            </p:commandLink> 
+                                            <p:graphicImage id="plotIconxx3" url="../../../resources/images/ui-help.png" alt="help"/>
+                                            <p:tooltip for="plotIconxx3" styleClass="helpTip">
+                                                <p>
+                                                    Top n variables of the highest Euclidean distance from the origin (0, 0).
+                                                </p>
+                                                <p>
+                                                    Recommend to keep it below 30 variables.
+                                                </p>
+                                            </p:tooltip>
+                                        </h:panelGrid>
+                                        <p:graphicImage value="#{sessionBean1.getCurrentImage('main_tableloadingcomp')}"/>
+                                    </h:panelGrid>
+                                </h:panelGrid>
+                            </h:panelGrid> 
+                            </h:form>    
+                        </p:tab>                          
+                        
+                        
+                        <p:tab title = "Prediction (Score v.s. Score)">
+                            <h:form id="resFormxx4">
+                            <h:panelGrid id="piePane4" columns="1" styleClass="panelColumns" style="width: 600px; text-align: center; padding-left: 40px; padding-top: 20px">    
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>These diagrams are really important, as this shows how each joint score of the same order from two different omics is linearly related. In the previous loading plots and tables, the user would pick the significant features corresponding to specific scores for two different omics. Now, as comparing two different scores and see how they are linearly related, the user can get ideas how those significant features from two different omics can be related. (check out "Feature Relationships" tab for more details) The samples with smaller cook's distance, are having stronger linear relationships on scores comparisons. The significant features on the joint score X (X can be 1 upto the number of joint scores) from omics1 samples with small cook's distance on the joint score X from omics1 has strong relationship with the significant features on the joint score X from omics2 samples with the small cook's distance on the joint score X from omics2.</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>The table on the bottom right are ordered based on small Cook's distance. The table on the bottom left is the statistics for the least square. The user can also include the sample meta-data factors to see where sample meta-data are.</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>Possible Future Improvements: Some outliers can totally distort adjusted R^2, so the user should not totally count on adj R^2 all the times. So, We got an idea that if we allow users to manually pick some outlying samples and get adj R^2, I think it would be helpful. Because for now, we first find the least square line using the entire datasets, and then, based on cook's distance, we remove some of the samples. It means that although we remove some samples, our least square line stays the same, which is not really good. If we make it fixed, it will be better.</b>
+                                </div>
+                                <div style="text-align: left; padding-bottom: 20px;">
+                                    The options:
+                                    <ul>
+                                        <li>Prediction based on: Which joint score will be on X-axis.</li>
+                                        <li>Joint score: Which joint score to compare in both omics to find linear relationships.</li>
+                                        <li>Top n samples: Upon clicking update, how many names of the samples, Cook's distance, values for the scores corresponding to both x-axis and y-axis list out on the table. Corresponding top n samples also show on the plot. The adjusted R^2 and least square statistics table will also be updated. The maximum input is the number of samples.</li>
+                                        <li>Sample-meta: Whether to color plots based on sample metadata. (first column of the datasets)</li>
+                                    </ul>
+                                </div>
+                                <h:panelGrid style="text-align: center; width:100%; padding-bottom: 10px;">
+                                        <h:outputText escape="true" value="#{procBean.stats4prediction}" style="font-weight: bold; color: #2738aa; font-size: 14px;"/>
+                                </h:panelGrid>
+                                <p:spacer/>
+
+                                <h3 style="text-align: left; padding-left: 15%;">Quality of predictions: Least square</h3>
+                                <h:panelGrid columns="2" style="text-align: right">     
+                                    <h:panelGrid columns="2" style="padding-left: 80%; text-align: right">
+                                        <p:commandLink   id="plot5" 
+                                                         actionListener="#{sessionBean1.graphicsLnk_action('main_plot5')}" 
+                                                         oncomplete="PF('graphDialog').show()"> 
+                                            <i class="fa fa-download fa-2x" ></i>
+                                        </p:commandLink> 
+                                        <p:graphicImage id="plotIcon5" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon5" styleClass="helpTip">
+                                            <p>
+                                                One good thing about O2PLS function is it provides the least square linear model of T (omics1 score) and U (omics2 score). (i.e. U = TB_T + H, where B_T is a square matrix of representing regression coefficients for two models and H is a noise)
+                                            </p>
+                                            <p>
+                                                The default is a prediction of omics2 based on omics1, from the first joint score, with no sample-meta applied. 
+                                            </p>
+                                            <p>
+                                                Add the sample-meta option to see the relationships of sample meta data on the score plots.
+                                            </p>
+                                        </p:tooltip>
+                                    </h:panelGrid>
+                                    <h:outputText value="" style="color:grey"/>
+                                    
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot5')}" />   
+                                    <h:panelGrid style="width: 500px;">
+                                        <h:panelGrid columns="3" style="padding-left: 30%;">
+                                            <h:outputText value="Prediction based on:" style="font-weight: bold; padding-left: 30px;"/>
+                                            <p:selectOneMenu id="grp83" value="#{sessionBean1.omicsChoice}" >
+                                                    <f:selectItem itemLabel="Omics 1" itemValue="1" />
+                                                    <f:selectItem itemLabel="Omics 2" itemValue="2" />
+                                            </p:selectOneMenu>
+                                            <h:outputText value="" style="color:grey"/>
+
+                                            <h:outputText value="Joint score:" style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt64" value="#{sessionBean1.jointPred}" style="width:20px;" />
+                                            <h:outputText value="(1 ~ joint comp)" style="color:grey"/>
+
+                                            <h:outputText value="Top n samples: " style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt43" value="#{sessionBean1.tableN}" style="width:20px" />
+                                            <h:outputText value="(1 ~ Sample #)" style="color:grey"/>
+
+                                            <h:outputText value="Sample-meta:" style="font-weight: bold"/>
+                                            <p:selectOneMenu id="grpxx3" value="#{sessionBean1.sampleMeta}" >
+                                                    <f:selectItem itemLabel="None" itemValue="1" />
+                                                    <f:selectItem itemLabel="Apply" itemValue="2" />
+                                            </p:selectOneMenu>
+                                            <h:outputText value="" style="color:grey"/>
+                                        </h:panelGrid>
+                                        <h:panelGrid style="width: 400px;">
+                                            <h:panelGrid style="padding-left: 65%; padding-top: 20px;">
+                                                <p:commandButton value="Update" update=":ac:resFormxx4" actionListener="#{procBean.updatePredictionTable()}"/>
+                                            </h:panelGrid>
+                                        </h:panelGrid>        
+                                    </h:panelGrid>
+                                </h:panelGrid>
+                                <h:panelGrid columns="2" style="text-align: center">
+                                    <h:panelGrid>
+                                        <h3>Quality of predictions: Least square statistics</h3>
+                                        <h:panelGrid columns="2" style="text-align: right; padding-left: 70%;">
+
+                                            <p:commandLink   id="plot6" 
+                                                             actionListener="#{sessionBean1.graphicsLnk_action('main_plot6')}" 
+                                                             oncomplete="PF('graphDialog').show()"> 
+                                                <i class="fa fa-download fa-2x" ></i>
+                                            </p:commandLink> 
+                                            <p:graphicImage id="plotIcon6" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon6" styleClass="helpTip">
+                                            <p>
+                                                This is the statistics from the linear model, including the adjusted p-values, adjusted r-square, and coefficients.
+                                            </p>
+                                            <p>
+                                                The default is a prediction of omics2 with omics1, from the first joint score. 
+                                            </p>
+                                        </p:tooltip>
+                                        </h:panelGrid>
+                                        <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot6')}" /> 
+                                    </h:panelGrid>
+                                
+                                    <h:panelGrid>
+                                        <h:panelGrid columns="2" style="padding-left: 75%;text-align: right">
+                                            <p:commandLink   id="plotxx4" 
+                                                             actionListener="#{sessionBean1.graphicsLnk_action('main_tableprediction')}" 
+                                                             oncomplete="PF('graphDialog').show()"> 
+                                                <i class="fa fa-download fa-2x" ></i>
+                                            </p:commandLink> 
+                                            <p:graphicImage id="plotIconxx4" url="../../../resources/images/ui-help.png" alt="help"/>
+                                            <p:tooltip for="plotIconxx4" styleClass="helpTip">
+                                                <p>
+                                                    Top n variables of the smallest Cook's distance (combination of outliers and leverages). 
+                                                </p>
+                                                <p>
+                                                    Recommend to keep it below 50% of the number of samples.
+                                                </p>
+                                            </p:tooltip>
+                                        </h:panelGrid>
+                                        <p:graphicImage value="#{sessionBean1.getCurrentImage('main_tableprediction')}"/>
+                                    </h:panelGrid>
+                                </h:panelGrid>
+                            </h:panelGrid>    
+                            </h:form>    
+                        </p:tab>        
+                               
+           
+                        <p:tab title = "Score and Variable">
+                            <h:form id="resFormxx5">
+                            <h:panelGrid id="piePane5" columns="1" styleClass="panelColumns" style="width: 700px; text-align: center; padding-left: 40px; padding-top: 20px">    
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>The plot will not be displayed if there is only one joint component. From all previous plots, the user learns the features of some samples in omics 1 that are related to the features of some samples in omics 2 in a certain score/component. Here, the diagrams help re-inspect how these components are correlated with the original datasets. The closer the arrow to the unit circle, the higher correlation to that variable to the component. (if the arrows are close to 1 or -1 of the x-axis, the corresponding variables are closely related to the score of the x-axis. The same idea applies to the ones on y-axis.)</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>The tables are ordered based on values from one of the "Value pick" options. For visual purposes, the plot will display randomly chosen 200 variables (if there are more than 200) for each update.</b>
+                                </div>
+                                <div style="text-align: left; padding-bottom: 20px;">
+                                    The options:
+                                    <ul>
+                                        <li>Omics: Which omics' joint scores to look at.</li>
+                                        <li>Top n variables: Upon clicking update, how many names of the samples, the coordinates (scores for X-axis and Y-axis), values of one of the distance measurements from "Value pick" list out on the table. Corresponding top n variables will also be colored on the plot. The maximum input is the number of variables.</li>
+                                        <li>X-axis: Corresponding joint score on the x-axis of the plot. The max input is the number of joint scores.</li>
+                                        <li>Y-axis: Corresponding joint score on the y-axis of the plot. The max input is the number of joint scores.</li>
+                                        <li>Value pick: Distance measurements for scores to find highly correlated variables. For the option "n absolute variables of both X,Y-axis comp," absolute value of x-axis score is blue, absolute value of y-axis score is red, and ones satisfied both are green if exist..</li>
+                                        <li>Visual option: Whether to show all/randomly chosen 200 (if there are more than 200 variables) or top n highly correlated variables.</li>
+                                    </ul>
+                                </div>
+                                <h3 style="text-align: left; padding-left: 15%;">Correlations of joint scores and variables</h3>
+                                <h:panelGrid columns="2" style="text-align: right">  
+                                    <h:panelGrid columns="2" style="padding-left: 80%; text-align: right">
+                                        <p:commandLink   id="plot7" 
+                                                         actionListener="#{sessionBean1.graphicsLnk_action('main_plot7')}" 
+                                                         oncomplete="PF('graphDialog').show()"> 
+                                            <i class="fa fa-download fa-2x" ></i>
+                                        </p:commandLink> 
+                                        <p:graphicImage id="plotIcon7" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon7" styleClass="helpTip">
+                                            <p>
+                                               This displays a correlation circle: correlation between scores and the original datasets. It tells you how and which joint components/scores are related with the original dataset (specifically, the variables).
+                                            </p>
+                                            <p>
+                                                The default plot is the omics1 joint component 1 and 2. 
+                                            </p>
+                                        </p:tooltip>
+                                    </h:panelGrid>
+                                    <h:outputText value="" style="color:grey"/>
+                                    
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot7')}" />   
+                                    <h:panelGrid style="width: 650px;">
+                                        <h:panelGrid columns="3" style="padding-left: 18%;">
+                                            <h:outputText value="Omics:" style="font-weight: bold; padding-left: 30px;"/>
+                                            <p:selectOneMenu id="grp84" value="#{sessionBean1.omicsChoice}" >
+                                                    <f:selectItem itemLabel="Omics 1" itemValue="1" />
+                                                    <f:selectItem itemLabel="Omics 2" itemValue="2" />
+                                            </p:selectOneMenu>
+                                            <h:outputText value="" style="color:grey"/>
+
+                                            <h:outputText value="Top n variables:" style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt44" value="#{sessionBean1.tableN}" style="width:20px" />
+                                            <h:outputText value="(1 ~ # feature)" style="color:grey"/>
+
+                                            <h:outputText value="X-axis:" style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt65" value="#{sessionBean1.xxAxis}" style="width:20px;" />
+                                            <h:outputText value="(1 ~ joint comp)" style="color:grey"/>
+
+
+                                            <h:outputText value="Y-axis:" style="font-weight: bold; padding-right: 10px;" />
+                                            <p:inputText id="txt66" value="#{sessionBean1.yyAxis}" style="width:20px;" />
+                                            <h:outputText value="(1 ~ joint comp)" style="color:grey"/>
+
+                                            <h:outputText value="Value pick:" style="font-weight: bold; padding-left: 30px;"/>
+                                            <p:selectOneMenu id="grp85" value="#{sessionBean1.valueChoice}" >
+                                                    <f:selectItem itemLabel="n variables of Euclidean dist" itemValue="1" />
+                                                    <f:selectItem itemLabel="n absolute variables of both X,Y-axis comp" itemValue="2" />
+                                                    <f:selectItem itemLabel="n absolute variables of X-axis comp" itemValue="3" />
+                                                    <f:selectItem itemLabel="n absolute variables of Y-axis comp" itemValue="4" />
+                                            </p:selectOneMenu>
+                                            <h:outputText value="" style="color:grey"/>
+
+                                            <h:outputText value="Visual optionn:" style="font-weight: bold; padding-left: 30px;"/>
+                                            <p:selectOneMenu id="grp86" value="#{sessionBean1.visualChoice}" >
+                                                    <f:selectItem itemLabel="Show random 200/all including top n" itemValue="1" />
+                                                    <f:selectItem itemLabel="Show only top n" itemValue="2" />
+                                            </p:selectOneMenu>
+                                            <h:outputText value="" style="color:grey"/>
+                                        </h:panelGrid>
+                                            
+                                        <h:panelGrid style="width: 400px;">
+                                            <h:panelGrid style="padding-left: 65%; padding-top: 20px;">
+                                                <p:commandButton value="Update" update=":ac:resFormxx5" actionListener="#{procBean.updateCorVarTable()}"/>
+                                            </h:panelGrid>
+                                        </h:panelGrid>    
+                                    </h:panelGrid>
+                                    
+                                    <h:outputText value="" style="color:grey"/>
+                                    <h:panelGrid>
+                                        <h:panelGrid columns="2" style="padding-left: 75%; text-align: right">
+                                            <p:commandLink   id="plotxx5" 
+                                                             actionListener="#{sessionBean1.graphicsLnk_action('main_tablecorvar')}" 
+                                                             oncomplete="PF('graphDialog').show()"> 
+                                                <i class="fa fa-download fa-2x" ></i>
+                                            </p:commandLink> 
+                                            <p:graphicImage id="plotIconxx5" url="../../../resources/images/ui-help.png" alt="help"/>
+                                            <p:tooltip for="plotIconxx5" styleClass="helpTip">
+                                                <p>
+                                                    Top n variables of the correlations of joint scores and original dataset, based on one of the options from "Value pick."
+                                                </p>
+                                                <p>
+                                                    Recommend to keep it below 5% of the variables from the original dataset.
+                                                </p>
+                                            </p:tooltip>
+                                        </h:panelGrid>
+                                        <p:graphicImage value="#{sessionBean1.getCurrentImage('main_tablecorvar')}"/>
+                                    </h:panelGrid>
+                                </h:panelGrid>
+                            </h:panelGrid> 
+                            </h:form>    
+                        </p:tab>                          
+                        
+
+                        <p:tab title = "Score and Metadata">
+                            <h:form id="resFormxx6">
+                            <h:panelGrid id="piePane6" columns="1" styleClass="panelColumns" style="width: 700px; text-align: center; padding-left: 40px; padding-top: 20px">    
+                                <div style="text-align: center; padding-bottom: 15px;">
+                                    <b>The 2nd and 3rd plots (on the 2nd row) will not be displayed if there is only one joint component.</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 10px;">
+                                    <b>The first plot (the one on the top) is to compare the correlations of joint components and the sample meta-data. The other plots (ones on the 2nd row and 3rd row) are just for the sanity check whether O2PLS performed appropriately. (hierarchial clustering and divide by boxes) O2PLS is supposed to make relatively small correlations between other components, thus, the same components (i.e. component 1 from omics 1 and component 1 from omics 2) are supposed to have higher correlations than the cross components (i.e. component 1 from omics 1 and component 2 from omics2). "C" stands for component.</b>
+                                </div>
+                                <div style="text-align: left; padding-bottom: 20px;">
+                                    The visual options:
+                                    <ul>
+                                        <li>Color: Color of the plots.</li>
+                                        <li>Shape: Shape of the plots.</li>
+                                    </ul>
+                                </div>
+                                <h3 style="text-align: left; padding-left: 22%;">Correlation of joint scores and metadata</h3>
+                                
+                                <h:panelGrid columns="2" style="text-align: right">  
+                                    <h:panelGrid columns="2" style="padding-left: 80%; text-align: right">
+                                        <p:commandLink   id="plot8" 
+                                                         actionListener="#{sessionBean1.graphicsLnk_action('main_plot8')}" 
+                                                         oncomplete="PF('graphDialog').show()"> 
+                                            <i class="fa fa-download fa-2x" ></i>
+                                        </p:commandLink> 
+                                        <p:graphicImage id="plotIcon8" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon8" styleClass="helpTip">
+                                            <p>
+                                                It show the correlations between all the joint scores and sample meta-data.
+                                            </p>
+                                            <p>
+                                                The default plot is the omics1.
+                                            </p>
+                                        </p:tooltip>
+                                    </h:panelGrid>
+                                    <h:outputText value="" style="color:grey"/>    
+                                    
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot8')}" />   
+                                    <h:panelGrid style="width: 550px;">
+                                        <h:panelGrid columns="3" style="padding-left: 18%;">
+                                            <h:outputText value="Color:" style="font-weight: bold"/>
+                                            <p:selectOneMenu id="grp87" value="#{sessionBean1.colorChoice}" >
+                                                <f:selectItem itemLabel="Option1 (default)" itemValue="1" />
+                                                <f:selectItem itemLabel="Option2" itemValue="2" />
+                                                <f:selectItem itemLabel="Option3" itemValue="3" />
+                                                <f:selectItem itemLabel="Option4" itemValue="4" />
+                                                <f:selectItem itemLabel="Option5" itemValue="5" />
+                                                <f:selectItem itemLabel="Option6" itemValue="6" />
+                                                <f:selectItem itemLabel="Option7" itemValue="7" />
+                                                <f:selectItem itemLabel="Option8" itemValue="8" />
+                                                <f:selectItem itemLabel="Option9" itemValue="9" />
+                                                <f:selectItem itemLabel="Option10" itemValue="10" />
+                                                <f:selectItem itemLabel="Option11" itemValue="11" />
+                                                <f:selectItem itemLabel="Option12" itemValue="12" />
+                                            </p:selectOneMenu>
+                                            <h:outputText value="" style="color:grey"/>  
+
+                                            <h:outputText value="Shape:" style="font-weight: bold"/>
+                                            <p:selectOneMenu id="grp88" value="#{sessionBean1.shapeChoice}" >
+                                                <f:selectItem itemLabel="Number (default)" itemValue="1" />
+                                                <f:selectItem itemLabel="Circle" itemValue="2" />
+                                                <f:selectItem itemLabel="Square" itemValue="3" />
+                                                <f:selectItem itemLabel="Color" itemValue="4" />
+                                                <f:selectItem itemLabel="Ellipse" itemValue="5" />
+                                                <f:selectItem itemLabel="Shade" itemValue="6" />
+                                                <f:selectItem itemLabel="pie" itemValue="7" />
+                                            </p:selectOneMenu>
+                                            <h:outputText value="" style="color:grey"/>  
+                                        </h:panelGrid>
+                                        
+                                        <h:panelGrid style="width: 400px;">
+                                            <h:panelGrid style="padding-left: 50%; padding-top: 20px;">
+                                                <p:commandButton value="Update" update=":ac:resFormxx6" actionListener="#{procBean.updateCorrelation()}"/>
+                                            </h:panelGrid>
+                                        </h:panelGrid>
+                                    </h:panelGrid>
+                                    
+                                    <h:panelGrid>
+                                        <h3 style="text-align: center; padding-left: 22%;">Omics1 Joint score correlation</h3>
+                                        <h:panelGrid columns="2" style="text-align: right; padding-left: 80%;">
+                                            <p:commandLink   id="plot9" 
+                                                             actionListener="#{sessionBean1.graphicsLnk_action('main_plot9')}" 
+                                                             oncomplete="PF('graphDialog').show()"> 
+                                                <i class="fa fa-download fa-2x" ></i>
+                                            </p:commandLink> 
+                                            <p:graphicImage id="plotIcon9" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon9" styleClass="helpTip">
+                                            <p>
+                                                This place is to confirm that there is no/small correlation in joint scores. (add cross on no significant coefficients, with divide by boxes with hierarchical clusterings)
+                                            </p>
+                                        </p:tooltip>
+                                        </h:panelGrid>
+                                        <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot9')}" /> 
+                                    </h:panelGrid>
+                                    <h:panelGrid>
+                                        <h3 style="text-align: center; padding-left: 24%;">Omics2 Joint score correlation</h3>
+                                        <h:panelGrid columns="2" style="text-align: right; padding-left: 80%;">
+                                            <p:commandLink   id="plot10" 
+                                                             actionListener="#{sessionBean1.graphicsLnk_action('main_plot10')}" 
+                                                             oncomplete="PF('graphDialog').show()"> 
+                                                <i class="fa fa-download fa-2x" ></i>
+                                            </p:commandLink> 
+                                            <p:graphicImage id="plotIcon10" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon10" styleClass="helpTip">
+                                            <p>
+                                                This place is to confirm that there is no/small correlation in joint scores.
+                                            </p>
+                                        </p:tooltip>
+                                        </h:panelGrid>
+                                        <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot10')}" /> 
+                                    </h:panelGrid>
+                                </h:panelGrid>         
+                                    <h:panelGrid>
+                                        <h3 style="text-align: center; padding-left: 11%;">Omics1 and Omics2 Joint score correlation</h3>
+                                        <h:panelGrid columns="2" style="text-align: right; padding-left: 80%;">
+
+                                            <p:commandLink   id="plot11" 
+                                                             actionListener="#{sessionBean1.graphicsLnk_action('main_plot11')}" 
+                                                             oncomplete="PF('graphDialog').show()"> 
+                                                <i class="fa fa-download fa-2x" ></i>
+                                            </p:commandLink> 
+                                            <p:graphicImage id="plotIcon11" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon11" styleClass="helpTip">
+                                            <p>
+                                                This place is to confirm that there are relatively significant correlations on the same joint between two omics. (divide by boxes with hierarchical clusterings)
+                                            </p>
+                                        </p:tooltip>
+                                        </h:panelGrid>
+                                        <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot11')}" /> 
+                                    </h:panelGrid>                                
+                            </h:panelGrid>  
+                            </h:form>    
+                        </p:tab>  
+                        
+                        
+                        
+                         <p:tab title = "Feature Relationships">
+                            <h:form id="resFormxx7">
+                            <h:panelGrid id="piePane7" columns="1" styleClass="panelColumns" style="width: 700px; text-align: center; padding-left: 40px; padding-top: 20px">    
+                                <div style="text-align: center; padding-bottom: 15px;">
+                                    <b>The table extracts the features from two different omics that are likely to be related on the samples extracted based on linear prediction of the specific joint scores. The score X (X can be 1 upto the number of joint component) from two different omics has linear relationships. (refer to the tab "Prediction (Score v.s. Score)") So, it calculates the linear relationships between two joint scores from different omics. And, it extracts the significant variables from two different omics on the loadings that corresponds to the specific scores. (refer to the tab "Loading") Thus, the features from two different omics might be related on the dimension of the joint score X. The univariate cross-correlation from two omics is calculated on top n significant features ("n" can be different for two omics) either with Pearson or Spearman.</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 15px;">
+                                    <b>It might be useful to look at the correlations of the joint scores and metadata for two different omics (refer to the tab "Score and Metadata") and the correlations of the joint scores and two different omics (refer to the tab "Score and Variable") together.</b>
+                                </div>
+                                <div style="text-align: center; padding-bottom: 15px;">
+                                    <b>Using all these ideas, the user can get three different values: 1. they can find features from two different omics that are likely to be related on the specific scores they want to look at from the summary table below, 2. they can find how much those specific scores correlated with metadata (refer to the tab "Score and Metadata"), and 3. they can find how each variable (from original omics datasets) is correlated with specific joint scores (refer to the tab "Score and Variable"), which would help understand what those scores represent for.</b>
+                                </div>
+                                <div style="text-align: left; padding-bottom: 15px;">
+                                    The columns of the table:
+                                    <ui>
+                                        <li>The first plot (left-hand side) is about the sample names and corresponding sample metadata. If the user chooses to get samples based on Cook's distance, it would order samples from small Cook's distance.</li>
+                                        <li>The second plot (right-hand side) give the top n significant features from omics 1 and omics 2. The table automatically fills out NA, if the user picks different number of significant variables to show for each omics.</li>
+                                    </ui>
+                                </div>
+                                <div style="text-align: left; padding-bottom: 20px;">
+                                    The options:
+                                    <ul>
+                                        <li>Samples in score linear relationship: How many samples to use to find the linear relationships between two joint scores. (related to the first, second and third columns)</li>
+                                        <li>Samples: The option is only undisabled if the user does not want to use all samples for linear predictions. How many samples of the smallest Cook's distance to use to find the linear relationships. (related to the first, second and third columns)</li>
+                                        <li>Loading significant variables Top n (omics1): How many significant (high absolute values of loadings) variables to pick from omics 1. The maximum input is the number of variables of the omics 1. (related to the fourth column)</li>
+                                        <li>Loading significant variables Top n (omics2): How many significant (high absolute values of loadings) variables to pick from omics 2. The maximum input is the number of variables of the omics 2. (related to the fifth column)</li>
+                                        <li>What joint comp to show: What joint score to look at. The max input is the number of joint scores.</li>
+                                        <li>Correlation: Two options for correlation measurements.</li>
+                                    </ul>
+                                </div>
+                                
+                                <h3 style="text-align: center;">Correlation of features from two omics</h3>
+                                <h:panelGrid columns="2" style="width: 1200px;">
+                                    <h:panelGrid columns="3" style="padding-left: 5%;">
+
+                                        <h:outputText value="Sample in score linear relationship:" style="font-weight: bold"/>
+                                        <p:selectOneMenu id="grp91" value="#{sessionBean1.sampleChoice}" >
+                                            <f:selectItem itemLabel="All samples" itemValue="1" />
+                                            <f:selectItem itemLabel="Samples based on Cook's distance" itemValue="2" />
+                                            <p:ajax event="change" update=":ac:resFormxx7:grp92" />
+                                        </p:selectOneMenu>
+                                        <h:outputText value="" style="color:grey"/>
+
+                                        <h:outputText value="Samples:" style="font-weight: bold; padding-right: 10px;" />
+                                        <p:inputText id="grp92" value="#{sessionBean1.sampleNumber}" style="width:20px;" disabled="#{sessionBean1.sampleChoice eq '1'}"/>
+                                        <h:outputText value="(1 ~ # sample)" style="color:grey"/>
+
+                                        <h:outputText value="Loading significant variables Top n (omics1):" style="font-weight: bold; padding-right: 10px;" />
+                                        <p:inputText id="grp89" value="#{sessionBean1.topN}" style="width:20px;" />
+                                        <h:outputText value="(1 ~ # variable omics1)" style="color:grey"/>
+
+                                        <h:outputText value="Loading significant variables Top n (omics2):" style="font-weight: bold; padding-right: 10px;" />
+                                        <p:inputText id="grp90" value="#{sessionBean1.topN2}" style="width:20px;" />
+                                        <h:outputText value="(1 ~ # variable omics2)" style="color:grey"/>
+
+                                        <h:outputText value="What joint comp to show:" style="font-weight: bold; padding-right: 10px;" />
+                                        <p:inputText id="grp95" value="#{sessionBean1.jointSummary}" style="width:20px;" />
+                                        <h:outputText value="(1 ~ # joint comp)" style="color:grey"/>
+                                        
+                                        <h:outputText value="Correlation:" style="font-weight: bold;"/>
+                                        <p:selectOneMenu id="grpxx2c" value="#{sessionBean1.corChoiceb}" >
+                                            <f:selectItem itemLabel="Pearson" itemValue="1" />
+                                            <f:selectItem itemLabel="Spearman" itemValue="2" />
+                                        </p:selectOneMenu>  
+                                        <h:outputText value="" style="color:grey"/>
+                                    </h:panelGrid>
+
+                                    <h:panelGrid style="width: 200px;">
+                                        <h:panelGrid style="padding-left: 50%; padding-top: 50%;">
+                                            <p:commandButton value="Update" update=":ac:resFormxx7" actionListener="#{procBean.updateSummary()}"/>
+                                        </h:panelGrid>
+                                    </h:panelGrid>
+                                </h:panelGrid>
+                                
+                                <h:panelGrid style="text-align: center; width:100%; padding-bottom: 10px;">
+                                        <h:outputText escape="true" value="#{procBean.stats4prediction2}" style="font-weight: bold; color: #2738aa; font-size: 14px;"/>
+                                </h:panelGrid>
+                                
+                                <h:panelGrid columns="2" style="padding-left: 34%;">
+                                    <h:panelGrid columns="2" >
+                                        <p:commandLink   id="plot12" 
+                                                         actionListener="#{sessionBean1.graphicsLnk_action('main_plot12')}" 
+                                                         oncomplete="PF('graphDialog').show()"> 
+                                            <i class="fa fa-download fa-2x" ></i>
+                                        </p:commandLink> 
+                                        <p:graphicImage id="plotIcon12" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon12" styleClass="helpTip">
+                                            <p>
+                                                The table extracts the samples and metadata on linear prediction of the specific joint scores. 
+                                            </p>
+                                        </p:tooltip>
+                                    </h:panelGrid>
+                                    <h:panelGrid columns="2" style="padding-left: 410px">
+                                        <p:commandLink   id="plot13" 
+                                                         actionListener="#{sessionBean1.graphicsLnk_action('main_plot13')}" 
+                                                         oncomplete="PF('graphDialog').show()"> 
+                                            <i class="fa fa-download fa-2x" ></i>
+                                        </p:commandLink> 
+                                        <p:graphicImage id="plotIcon13" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon13" styleClass="helpTip">
+                                            <p>
+                                                The table extracts the significant features from two different omics. 
+                                            </p>
+                                        </p:tooltip>
+                                    </h:panelGrid>
+                                </h:panelGrid>
+                                
+                                
+                                <h:panelGrid columns="2" style="padding-left: 10%;">
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot12')}" />
+                                    <p:graphicImage style = "padding-left: 5%;" value="#{sessionBean1.getCurrentImage('main_plot13')}" />
+                                </h:panelGrid>
+                                
+                                <h:panelGrid>
+                                    <h:panelGrid columns="2" style="padding-left: 65%;">
+                                        <p:commandLink   id="plot12b" 
+                                                         actionListener="#{sessionBean1.graphicsLnk_action('main_plot14crosscor')}" 
+                                                         oncomplete="PF('graphDialog').show()"> 
+                                            <i class="fa fa-download fa-2x" ></i>
+                                        </p:commandLink> 
+                                        <p:graphicImage id="plotIcon12b" url="../../../resources/images/ui-help.png" alt="help"/>
+                                        <p:tooltip for="plotIcon12b" styleClass="helpTip">
+                                            <p>
+                                                Univariate cross-correlations (Pearson or Spearman) of significant features of two different omics.
+                                            </p>
+                                        </p:tooltip>
+                                    </h:panelGrid>
+                                    <p:graphicImage value="#{sessionBean1.getCurrentImage('main_plot14crosscor')}" />
+                                </h:panelGrid>
+                                
+                                
+                            </h:panelGrid>  
+                            </h:form>    
+                        </p:tab>   
+                        
+                    </p:tabView>
+                </h:panelGrid>
+            </p:layoutUnit>
+        </p:layout>
+    </ui:define>
+</ui:composition>

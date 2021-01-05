@@ -1,0 +1,2051 @@
+---
+title: "Project"
+author: "Jin Kweon"
+date: "3/5/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Libraries
+```{r}
+library(gplots)#heatmap.2
+library(ggplot2)
+library(genefilter)
+library(edgeR)
+library(reshape2)
+library(moments) #calculate skewness and kurtosis
+library(gridExtra) #plots side by side
+library(factoextra) #prcomp visualization
+library(VIM) #missing data graphics
+library(LMGene) #glog
+library(limma) #batch effects
+library(pheatmap)
+library(ggfortify) #pca autoplot
+library(FactoMineR)
+library(devtools)
+library(ggbiplot)
+library(factoextra)
+library(mixOmics)
+```
+
+
+#Read file
+```{r}
+df <- read.table("Kallisto_ELS_JQ_EE2.txt", header = T, as.is = T)
+
+grp.lbl <- as.factor(df[1,-1])
+grp.nms <- levels(grp.lbl)
+df <- data.matrix(df[-1, ])       
+
+rownames(df) <- as.character(df[,1])
+df <- df[ ,-1]
+
+
+df2 <- read.table("Kallisto_Adult_JQ_EE2.txt", header = T, as.is = T)
+grp.lbl2 <- as.factor(df2[1,-1])
+grp.nms2 <- levels(grp.lbl2)
+df2 <- data.matrix(df2[-1, ])       
+
+rownames(df2) <- as.character(df2[,1])
+df2 <- df2[ ,-1]
+df2 <- df2[,-16] #one more control 
+grp.lbl2 <- grp.lbl2[-16] #one more control 
+
+#Reorder to match ESL
+df2.high <- df2[,1:5] 
+df2.med <- df2[,6:10]
+df2.ctl <- df2[,11:15]
+grp.lbl2.high <- grp.lbl2[1:5]
+grp.lbl2.med <- grp.lbl2[6:10]
+grp.lbl2.ctl <- grp.lbl2[11:15]
+df2 <- cbind(df2.ctl, df2.med, df2.high)
+grp.lbl2 <- factor(c(grp.lbl2.ctl, grp.lbl2.med, grp.lbl2.high), labels=c("Control","High","Medium"))
+```
+
+#If row names of data contain duplicates, their values will be replaced by the sum of all duplicates
+```{r}
+SumDuplicates <- function(data){
+  all.nms <- rownames(data);
+  dup.inx <- duplicated(all.nms);
+  if(sum(dup.inx) > 0){
+    uniq.nms <- all.nms[!dup.inx];
+    uniq.data <- data[!dup.inx,,drop=F];
+    dup.nms <- all.nms[dup.inx];
+    uniq.dupnms <- unique(dup.nms);
+    uniq.duplen <- length(uniq.dupnms);
+    for(i in 1:uniq.duplen){
+      nm <- uniq.dupnms[i];
+      hit.inx.all <- which(all.nms == nm);
+      hit.inx.uniq <- which(uniq.nms == nm);
+      uniq.data[hit.inx.uniq, ] <- apply(data[hit.inx.all,,drop=F], 2, sum);
+    }
+    return(uniq.data);
+  }else{
+    return(data);
+  }
+}
+
+df_dup_fixed <- SumDuplicates(df)
+df_dup_fixed <- t(df_dup_fixed)
+
+#To check the duplicates manually
+write.table(df_dup_fixed, "df_dup_fixed.txt", sep = "\t", row.names = TRUE)
+
+#double check duplication
+sum(duplicated(colnames(df_dup_fixed)))
+
+
+df_dup_fixed2 <- SumDuplicates(df2)
+df_dup_fixed2 <- t(df_dup_fixed2)
+
+sum(duplicated(colnames(df_dup_fixed2)))
+```
+
+
+#Missing value check
+```{r}
+miss_check <- function(data1){
+  if(sum(colSums(is.na(data1))) != 0){
+    warning("Data1 and Data2 have the missing values. Need missing data imputations.")
+  }else{
+    print("All good.")
+  } 
+}
+
+miss_check(df_dup_fixed)
+miss_check(df_dup_fixed2)
+
+
+#Can show the histograms using VIM package. - need to make user interactive 
+try(VIM::aggr(df_dup_fixed, col=c('blue','red'), numbers=TRUE, sortVars=FALSE,
+labels=names(df_dup_fixed), cex.axis=.5, gap=3, ylab=c("Histogram of missing data","Pattern"), 
+xlab = c("variables", "variables")))
+```
+
+
+
+#Filter
+
+#Low count filter - features with very small counts in very few samples are likely due to sequencing errors or low-level contaminations. You need to first specify a minimum count (default 4). For instance, if you use 20% prevalence filter, meaning for any feature to be retained, at least 20% of its values should contain at least 4 counts. You can also filter low abundance features based on whether their mean or median values are below the minimum count.
+
+#Low varianace filter - features that are close to constant throughout the experiment conditions are unlikely to be associated with the conditions under study (useful for comparative analysis). Their variances can be measured using inter-quantile range (IQR), standard deviation or coeffecient of variation (CV). The lowest percentage based on the specified cutoff will be excluded.
+```{r}
+n <- readline(prompt="Enter an integer (1. absolute maximum of gene expression 2. Low variance based on IQR 3. Low variance based on standard deviation 4. Low variance based on coefficient of variation 5. low count of sum 6. low count with mean abundance 7. low count with median abundance 8. low count with prevalence in sample %): ")
+n <- as.numeric(n)
+
+filter_indx <- function(n, data){
+  if (n == 1){
+    #calculate the abs maximum of gene expression level (GE) per each gene and take the top 40% - 
+    prop <- readline(promp = "Enter the proportion [0, 1] to remove: ")
+    prop <- as.numeric(prop)
+    maxGE <- apply(data, 2, function (x) max(abs(x)))
+    propGEmax <- quantile(maxGE, prop, na.rm = T)
+    indx <- which(maxGE > propGEmax)
+  }else if (n == 2){
+    #take the IQR of each gene and take the top genes 40%: low variance - 
+    prop <- readline(promp = "Enter the proportion [0, 1] to remove: ")
+    prop <- as.numeric(prop)
+    IQRGE <- apply(data, 2, IQR, na.rm=T)
+    propGEIQR <- quantile(IQRGE, prop, na.rm = T) 
+    indx <- which(IQRGE> propGEIQR)
+  }else if (n == 3){
+    #take the standard deviation of each gene and take the top genes 40%: low variance - 
+    prop <- readline(promp = "Enter the proportion [0, 1] to remove: ")
+    prop <- as.numeric(prop)
+    sdGE <- apply(data, 2, sd, na.rm=T)
+    sdGEIQR <- quantile(sdGE, prop, na.rm = T) 
+    indx <- which(sdGE> sdGEIQR)
+  }else if (n == 4){
+    #take the standard deviation of each gene and take the top genes 40%: low variance - 
+    prop <- readline(promp = "Enter the proportion [0, 1] to remove: ")
+    prop <- as.numeric(prop)    
+    sds <- apply(df_dup_fixed, 2, sd, na.rm=T)
+    mns <- apply(df_dup_fixed, 2, mean, na.rm=T)
+    coefs <- abs(sds/mns)
+    coefsGEIQR <- quantile(coefs, prop, na.rm = T) 
+    indx <- which(coefs> coefsGEIQR)
+  }else if (n == 5){
+    #low count of sum - DESeq2
+    count_threshold <- readline(promp = "Enter the count threshold: ")
+    count_threshold <- as.numeric(count_threshold)
+    sums <- apply(data, 2, sum, na.rm = T)
+    indx <- sums >= count_threshold
+  }else if (n == 6){
+    #low count filter with mean abundance - DESeq2
+    count_threshold <- readline(promp = "Enter the count threshold: ")
+    count_threshold <- as.numeric(count_threshold)
+    meanGE <- apply(data, 2, mean, na.rm = T)
+    indx <- meanGE >= count_threshold
+  }else if (n == 7){
+    #low count filter with median abundance - DESeq2
+    count_threshold <- readline(promp = "Enter the count threshold: ")
+    count_threshold <- as.numeric(count_threshold)
+    medGE <- apply(data, 2, median, na.rm = T)
+    indx <- medGE >= count_threshold
+  }else {
+    #low count filter with prevalence - not recommended - EdgeR method
+    count_threshold <- readline(promp = "Enter the count threshold: ")
+    count_threshold <- as.numeric(count_threshold)
+    prev <- readline(promp = "Enter the prevalence [0, 1]: ")
+    prev <- as.numeric(prev) 
+    minLen <- prev * nrow(data)
+    indx <- apply(data, 2, function(x) {sum(x >= count_threshold) >= minLen})
+  }
+  return(indx)
+}
+#low variance
+keep_inx <- filter_indx(n, df_dup_fixed)
+df_dup_fixed_filt <- df_dup_fixed[,keep_inx]
+
+keep_inx2 <- filter_indx(n, df_dup_fixed2)
+df_dup_fixed_filt2 <- df_dup_fixed2[,keep_inx2]
+
+#low count
+keep_inx <- filter_indx(n, df_dup_fixed_filt)
+df_dup_fixed_filt <- df_dup_fixed_filt[,keep_inx]
+
+keep_inx2 <- filter_indx(n, df_dup_fixed_filt2)
+df_dup_fixed_filt2 <- df_dup_fixed_filt2[,keep_inx2]
+
+
+#dim(df_dup_fixed[,filter_indx(n, df_dup_fixed)]) #check the answer
+```
+
+
+
+#Data dimension check
+```{r}
+data_statistics <- data.frame(matrix(ncol = 2, nrow = 3))
+x <- c("#rows/sample", "#columns/feature")
+colnames(data_statistics) <- x
+y <- c("original", "duplicate_removed", "filtered")
+rownames(data_statistics) <- y
+
+data_statistics[1,] <- c(nrow(t(df)), ncol(t(df))) 
+data_statistics[2,] <- c(nrow(df_dup_fixed), ncol(df_dup_fixed)) 
+data_statistics[3,] <- c(nrow(df_dup_fixed_filt), ncol(df_dup_fixed_filt))
+data_statistics
+
+
+data_statistics.adult <- data.frame(matrix(ncol = 2, nrow = 3))
+x <- c("#rows/sample", "#columns/feature")
+colnames(data_statistics.adult) <- x
+y <- c("original", "duplicate_removed", "filtered")
+rownames(data_statistics.adult) <- y
+
+data_statistics.adult[1,] <- c(nrow(t(df2)), ncol(t(df2))) 
+data_statistics.adult[2,] <- c(nrow(df_dup_fixed2), ncol(df_dup_fixed2)) 
+data_statistics.adult[3,] <- c(nrow(df_dup_fixed_filt2), ncol(df_dup_fixed_filt2))
+data_statistics.adult
+```
+
+
+#Normalization
+auto-scaling (HW2) - checked
+generalized log transformation (o2pls) - checked 
+min-max scaling (HW2) - checked 
+two-parameter box-cox transformation (o2pls) - checked 
+upper quantile normalization (ecotoxx) - checked 
+trimmed mean of M-values normalization (ecotoxx) - checked 
+log2 counts per million (ecotoxx) - checked 
+
+```{r}
+n <- readline(prompt="Enter an integer (1. auto scaling 2. generalized log transformation 
+              3. min-max scaling 4. two-parameter box cox transformation
+              5. quantile normalization 6. variancne stabilizing normalization
+              7. log2 transformation 8. log2 counts per million
+              9. trimmed mean of M-values normalization 
+              10. relative log expression normalisation
+              11. upper quantile normalization
+              12. variancne stabilizing normalization and quantile normalization): ")
+n <- as.numeric(n)
+
+
+normalized <- function(n, data){
+  if (n == 1){
+    #auto scaling 
+    normed <- scale(data)
+  } else if (n == 2){
+    #generalized log transformation
+    lmbd <- readline(promp = "Enter the lambda: ")
+    lmbd <- as.numeric(lmbd)
+    normed <- glog(data, lmbd)
+  } else if (n == 3){
+    #min-max scaling
+    min_max <- function(x){
+      return ((x - min(x)) / (max(x) - min(x)))
+    }
+    normed <- apply(df_dup_fixed_filt, 2, min_max)
+  } else if (n == 4){
+    #two-parameter box-cox transformation
+    lambd1 <- readline(prompt="Enter a lambda1: ")
+    lambd1 <- base::eval(parse(text = lambd1))
+    lambd2 <- readline(prompt="Enter a lambda2: ")
+    lambd2 <- base::eval(parse(text = lambd2))
+      if(all(data > -lambd2)){
+        if(lambd1 == 0){
+          normed <- log(data+lambd2)
+        }else{
+          normed <- ((data+lambd2)^(lambd1) - 1)/lambd1
+        }
+      }else{
+        stop("some of the data <= -lambda2")
+      }
+  } else if (n == 5){
+    #quantile normalization 
+    library(preprocessCore)
+    normed <- normalize.quantiles(t(data), copy=TRUE)
+    normed <- t(normed)
+  } else if (n == 6){
+    #variancne stabilizing normalization
+    library(limma)
+    library(vsn)
+    normed <- normalizeVSN(t(data), minDataPointsPerStratum = 3) #change minDataPointsPerStratum
+    normed <- t(normed)
+  } else if (n == 7){
+    #log2 transformation
+    min.val <- min(data[data>0], na.rm=T)/10
+    data[data<=0] <- min.val
+    normed <- log2(data)      
+  } else if (n == 8){
+    #log2 counts per million
+    library(edgeR)
+    nf <- edgeR::calcNormFactors(t(data))
+    y <- voom(t(data),plot=F,lib.size=colSums(t(data))*nf)
+    normed <- y$E
+    normed <- t(normed)
+
+  } else if (n == 9){
+    #trimmed mean of M-values normalization
+    library(edgeR)
+    nf <- edgeR::calcNormFactors(t(data),method="TMM")
+    y <- voom(t(data),plot=F,lib.size=colSums(t(data))*nf)
+    normed <- y$E
+    normed <- t(normed)
+
+    #or,
+            #     suppressMessages(require("edgeR"));
+            # data[data<0] <- 0
+            # otuTMM <- edgeRnorm(t(data),method="TMM");
+            # data <- as.data.frame(t(otuTMM$counts));
+
+  } else if (n == 10){
+    #Relative log expression normalisation
+    library(edgeR)
+    min.val <- min(data[data>0], na.rm=T)/10
+    data[data<=0] <- min.val
+    nf <- edgeR::calcNormFactors(t(data),method="RLE")
+    y <- voom(t(data),plot=F,lib.size=colSums(t(data))*nf)
+    normed <- y$E
+    normed <- t(normed)
+    #or,
+            #     suppressMessages(require("edgeR"));
+            # data[data<0] <- 0
+            # otuRLE <- edgeRnorm(t(data),method="RLE");
+            # data <- as.data.frame(t(otuRLE$counts))
+    
+  } else if (n == 11){
+    #upper quantile normalization
+    library(edgeR)
+    nf <- edgeR::calcNormFactors(t(data),method="upperquartile")
+    y <- voom(t(data),plot=F,lib.size=colSums(t(data))*nf)
+    normed <- y$E
+    normed <- t(normed)
+    #or,
+            # suppressMessages(require("edgeR"));
+            # data[data<0] <- 0
+            # otuUQ <- edgeRnorm(t(data),method="upperquartile");
+            # data <- as.data.frame(t(otuUQ$counts));
+  } else {
+    #variancne stabilizing normalization and quantile normalization 
+    library(limma)
+    data <- normalizeVSN(t(data), minDataPointsPerStratum = 3) #change minDataPointsPerStratum
+    library(preprocessCore)
+    normed <- normalize.quantiles(data, copy=TRUE)
+    normed <- t(normed)
+  }
+  return(normed)
+}
+
+
+df_dup_final <- normalized(n, df_dup_fixed_filt)
+
+df_dup_final2 <- normalized(n, df_dup_fixed_filt2)
+```
+
+
+
+
+#Sanity check
+box plot 
+density plot 
+histogram
+heatmap 
+mean-standard deviation plot 
+some tables of statistical values (dimensions, mean, median, mode, summary, str, IQR, etc) 
+scatter plot 
+standard deviation plot 
+‘mean - median’ plot 
+kurtosis plot 
+skewness plot 
+quantile-quantile plot 
+conditioning scatter plot  
+correlation analysis 
+```{r}
+n <- readline(prompt="Enter an integer (1. boxplot 2. density plot 
+              3. histogram 4. heatmap
+              5. mean-standard deviation plot 6. tables
+              7. scatter plot 8. Normalization check plots
+              9. Conditioning plot  
+              10. Correlation plot): ")
+n <- as.numeric(n)
+
+sanity <- function (n, data){
+  if (n == 1){
+    boxplot(t(data), xlab = "sample", ylab = "counts", las = 1, cex.axis = 0.8, horizontal = T, main = "boxplot")
+    
+  } else if (n == 2){
+    par(mfrow = c(2, 2))
+    library(lattice) #densityplot 
+    for (i in 1:nrow(data)){
+      densityplot(data[i,], main = paste("density ", i, sep = ""))
+    }
+    
+    for (i in 1:nrow(data)){
+      den <- density(data[i,], adjust = 0.4) #bumpy - change adjust
+      plot(den, main = paste("density ", i, sep = ""))
+      polygon(den, col = "red", border = "blue")
+      density(data[i,])
+    }
+  } else if (n == 3){
+    for (i in 1:nrow(data)){
+      hist(data[i,], main = paste("histogram ", i, sep = ""))
+    }
+  } else if (n == 4){
+    pheatmap(data)
+  } else if (n == 5){
+    library(vsn)
+    meanSdPlot(as.matrix(t(data)), ranks=FALSE) 
+  } else if (n == 6){
+    #some tables of statistical values (dimensions, mean, median, mode, summary, str, IQR, etc)
+    getmode <- function(v) {
+       uniqv <- unique(v)
+       uniqv[which.max(tabulate(match(v, uniqv)))]
+    }
+    
+    data_statistics2 <- data.frame(matrix(ncol = 6, nrow = nrow(data)))
+    x <- c("Min", "Median", "Mean", "Mode", "Max", "IQR")
+    colnames(data_statistics2) <- x
+    y <- rownames(data)
+    rownames(data_statistics2) <- y
+    
+    for (i in 1:nrow(data)){
+      vecs <- c(min(data[i,]),  median(data[i,]), mean(data[i,]), getmode(data[i,]),
+                max(data[i,]), IQR(data[i,])
+      )
+                
+      data_statistics2[i,] <- vecs
+    }
+    data_statistics2
+    
+  } else if (n == 7){
+    par(mfrow = c(2, 2))
+    for (i in 1:nrow(data)){
+      plot(data[i,], main = paste("scatter ", i, sep = ""), xlab = "gene", ylab = "count")
+    }
+  
+    pairs(df_dup_final[,1:10], panel = panel.smooth) #change genes if you want 
+  } else if (n == 8){
+    for (i in 1:nrow(data)){
+      par(mfrow = c(1,1))
+      qqnorm(data[i,], main = rownames(data)[i]); qqline(data[i,])
+    }
+      par(mfrow = c(2,2))
+      plot(apply(data, 2, mean) - apply(data, 2, median), ylab = "Mean - Median", xlab = "gene")
+      plot(apply(data, 2, sd), ylab = "Stdv", xlab = "gene")
+      plot(apply(data, 2, skewness), ylab = "Skewness", xlab = "gene")
+      plot(apply(data, 2, kurtosis), ylab = "Kurtosis", xlab = "gene")
+  } else if (n == 9){
+    coplot(data[1,] ~ data[2,] | data[3,],  rows = 1, overlap = 0, number = 5) #can change the value
+  } else {
+    library(corrplot) #coorrelation plot
+    corrplot(cor(data[,1:10], data[,100:120]), method = "circle")#can change the value
+    
+    corrplot.mixed(cor(data[,220:240]))#can change the value
+    
+    corrplot(cor(data[,1000:1020]), order = "hclust")#can change the value
+    
+    corrplot(cor(data[,2000:2020]), order = "hclust", addrect = 2)#can change the value
+    
+    col3 <- colorRampPalette(c("red", "white", "blue")) 
+    corrplot(cor(data[,4000:4020]), order = "hclust", addrect = 2, col = col3(20))#can change the value
+    
+    res1 <- cor.mtest(data[,10000:10020], conf.level = .95)#can change the value
+    corrplot(cor(data[,10000:10020]), p.mat = res1$p, sig.level = .2)#can change the value
+    
+    corrplot(cor(data[,10000:10020]), p.mat = res1$p, insig = "p-value")#can change the value
+    
+    corrplot(cor(data[,10000:10020]), p.mat = res1$p, order = "hclust", insig = "pch", addrect = 2) #can change the value
+  }
+}
+
+sanity(n, df_dup_final)
+
+sanity(n, df_dup_fina2)
+
+
+#Boxplot
+par(mfrow = c(1,2))
+boxplot(t(df_dup_final), xlab = "counts", ylab = "sample", las = 1, cex.axis = 0.5, horizontal = T, main = "ELS boxplot")
+
+boxplot(t(df_dup_final2), xlab = "counts", ylab = "sample", las = 1, cex.axis = 0.5, horizontal = T, main = "Adult boxplot")
+    
+
+
+par(mfrow = c(2, 3))
+library(lattice) #densityplot   
+els.con <- c(t(df_dup_final[1:5,]))
+els.med <- c(t(df_dup_final[6:10,])) 
+els.h <- c(t(df_dup_final[11:15,])) 
+
+adl.con <- c(t(df_dup_final2[1:5,]))
+adl.med <- c(t(df_dup_final2[6:10,])) 
+adl.h <- c(t(df_dup_final2[11:15,])) 
+
+den <- density(els.con, adjust = 0.4) #bumpy - change adjust
+plot(den, main = "ELS con")
+polygon(den, col = "red", border = "blue")
+
+den <- density(els.med, adjust = 0.4) #bumpy - change adjust
+plot(den, main = "ELS med")
+polygon(den, col = "red", border = "blue")
+
+den <- density(els.h, adjust = 0.4) #bumpy - change adjust
+plot(den, main = "ELS high")
+polygon(den, col = "red", border = "blue")
+
+den <- density(adl.con, adjust = 0.4) #bumpy - change adjust
+plot(den, main = "ADL con")
+polygon(den, col = "red", border = "blue")
+
+den <- density(adl.med, adjust = 0.4) #bumpy - change adjust
+plot(den, main = "ADL med")
+polygon(den, col = "red", border = "blue")
+
+den <- density(adl.h, adjust = 0.4) #bumpy - change adjust
+plot(den, main = "ADL high")
+polygon(den, col = "red", border = "blue")
+
+
+
+
+#heatmap
+pheatmap(df_dup_final)
+pheatmap(df_dup_final2)
+
+
+
+#ms plot 
+msd <- meanSdPlot(as.matrix(t(df_dup_final)), ranks=FALSE) 
+msd2 <- meanSdPlot(as.matrix(t(df_dup_final2)), ranks=FALSE)
+
+msd$gg + ggtitle("ELS")
+msd2$gg + ggtitle("Adult")
+
+
+#table
+    #some tables of statistical values (dimensions, mean, median, mode, summary, str, IQR, etc)
+    getmode <- function(v) {
+       uniqv <- unique(v)
+       uniqv[which.max(tabulate(match(v, uniqv)))]
+    }
+    
+    data_statistics.els <- data.frame(matrix(ncol = 6, nrow = nrow(df_dup_final)))
+    x <- c("Min", "Median", "Mean", "Mode", "Max", "IQR")
+    colnames(data_statistics.els) <- x
+    y <- rownames(df_dup_final)
+    rownames(data_statistics.els) <- y
+    
+    for (i in 1:nrow(df_dup_final)){
+      vecs <- c(min(df_dup_final[i,]),  median(df_dup_final[i,]), mean(df_dup_final[i,]), getmode(df_dup_final[i,]),
+                max(df_dup_final[i,]), IQR(df_dup_final[i,])
+      )
+                
+      data_statistics.els[i,] <- vecs
+    }
+    data_statistics.els
+    
+    
+        #some tables of statistical values (dimensions, mean, median, mode, summary, str, IQR, etc)
+    getmode <- function(v) {
+       uniqv <- unique(v)
+       uniqv[which.max(tabulate(match(v, uniqv)))]
+    }
+    
+    data_statistics.adult <- data.frame(matrix(ncol = 6, nrow = nrow(df_dup_final2)))
+    x <- c("Min", "Median", "Mean", "Mode", "Max", "IQR")
+    colnames(data_statistics.adult) <- x
+    y <- rownames(df_dup_final2)
+    rownames(data_statistics.adult) <- y
+    
+    for (i in 1:nrow(df_dup_final2)){
+      vecs <- c(min(df_dup_final2[i,]),  median(df_dup_final2[i,]), mean(df_dup_final2[i,]), getmode(df_dup_final2[i,]),
+                max(df_dup_final2[i,]), IQR(df_dup_final2[i,])
+      )
+                
+      data_statistics.adult[i,] <- vecs
+    }
+    data_statistics.adult
+
+#scatter
+        par(mfrow = c(2, 2))
+    for (i in 1:nrow(df_dup_final)){
+      plot(df_dup_final[i,], main = paste("scatter ", i, sep = ""), xlab = "gene", ylab = "count")
+    }
+  
+    #pairs(df_dup_final[,1:10], panel = panel.smooth) #change genes if you want 
+
+       
+        
+         
+#normalization check
+    for (i in 1:nrow(df_dup_final)){
+      par(mfrow = c(1,1))
+      qqnorm(df_dup_final[i,], main = rownames(df_dup_final)[i]); qqline(df_dup_final[i,])
+    }
+      par(mfrow = c(2,2))
+      plot(apply(df_dup_final, 2, mean) - apply(df_dup_final, 2, median), ylab = "Mean - Median", xlab = "gene")
+      plot(apply(df_dup_final, 2, sd), ylab = "Stdv", xlab = "gene")
+      plot(apply(df_dup_final, 2, skewness), ylab = "Skewness", xlab = "gene")
+      plot(apply(df_dup_final, 2, kurtosis), ylab = "Kurtosis", xlab = "gene")    
+      
+      
+#Conditioning plot
+coplot(df_dup_final[1,] ~ df_dup_final[2,] | df_dup_final[3,],  rows = 1, overlap = 0, number = 5) #can change the value
+
+
+#
+```
+
+
+
+#Parametric and non-parametric (binf HW2)
+Anova 
+t-test (independent or paired) - done
+mann whitney U (independent) - done
+wilcoxon (related) - done 
+
+Multiple testing corrections (bonferroni or FDR) - done
+
+
+
+https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test 
+It is possible that parametric and nonparametric outcomes are different. The data might follow normal distribution, and if we know that, then it is better to use the parametric testing. 
+```{r}
+anov_dat <- cbind(grp.lbl, df_dup_final)
+
+aof <- function(x){
+  anova(aov(x ~ anov_dat[,1]))
+}
+
+anova.res <- apply(df_dup_final, 2, aof)
+
+f_val <- c()
+for(i in 1:length(anova.res)){
+  f_val[i] <- anova.res[i][[1]][[4]][1]
+}
+head(f_val)
+
+p_val <- c()
+for(i in 1:length(anova.res)){
+  p_val[i] <- anova.res[i][[1]][[5]][1]
+}
+head(p_val)
+
+
+bonf <- c()
+bonf <- p.adjust(p_val, method = "bonferroni")
+head(bonf)
+
+
+fdr <- c()
+fdr <- p.adjust(p_val, method = "BH")
+head(fdr)
+
+combined <- cbind(F_val = f_val, P_val = p_val, 
+                  Bonferroni = bonf, FDR = fdr)
+dim(combined)
+rownames(combined) <- 1:nrow(combined)
+
+combined
+
+pheatmap(t(df_dup_final[,order(combined[,2], decreasing = F)[1:200]]))
+
+
+
+
+# one <- aov(data ~ grp.lbl, data = as.data.frame(df_dup_final))
+# summary(one, test = "Wilks")
+#summary.aov(one, test = "Wilks")
+
+
+
+#three_manova <- manova(cbind(Distance, Mass) ~ as.factor(Colony) * Size.class, data = ant)
+# summary(three_manova, test = "Wilks")
+# summary.aov(three_manova, test = "Wilks")
+# summary.manova(three_manova, test = "Wilks")
+
+
+# anova(lm(mpg ~ disp + hp, data = mtcars))
+
+
+
+
+
+
+
+#t.test(dat1, dat2) is the same as t.test(melt(dat1), melt(dat2))... -> if we apply t.test to the matrix, they are automatically changing to the one long vector!!!
+
+
+#t.test on samples
+t_samples <- data.frame(matrix(ncol = 4, nrow = choose(nrow(df_dup_final),2)))
+x <- c("T.value", "p.value", "bonferroni", "BH")
+colnames(t_samples) <- x
+
+tt.t <- data.frame(matrix(ncol = nrow(df_dup_final), nrow = nrow(df_dup_final)))
+tt.p <- data.frame(matrix(ncol = nrow(df_dup_final), nrow = nrow(df_dup_final)))
+tt.name <- data.frame(matrix(ncol = nrow(df_dup_final), nrow = nrow(df_dup_final)))
+#sample pairwise comparisons forloop
+for(i in 1:(nrow(df_dup_final)-1)){
+  for(j in (i+1):nrow(df_dup_final)){
+    tt.t[i,j] <- t.test(df_dup_final[i,], df_dup_final[j,], paired = F)$statistic #cuz they are all independent samples!
+    tt.p[i,j] <- round(t.test(df_dup_final[i,], df_dup_final[j,], paired = F)$p.value, 4)
+    tt.name[i,j] <- paste0(i, "+", j)
+  }
+}
+
+
+rownames(t_samples) <- na.omit(melt(t(tt.name))$value)#Extracting triangle values row by row 
+t_samples[,1] <- na.omit(melt(t(tt.t))$value)
+t_samples[,2] <- na.omit(melt(t(tt.p))$value)
+
+bonf <- c()
+bonf <- p.adjust(t_samples$p.value, method = "bonferroni")
+
+fdr <- c()
+fdr <- p.adjust(t_samples$p.value, method = "BH")
+
+t_samples[,3] <- bonf
+t_samples[,4] <- fdr
+t_samples
+t_samples[order(t_samples$p.value),] #based on small p-values: meaning that those two samples are not the same based on t-stattistics
+
+t_samples[order(t_samples$p.value, decreasing = T),] #based on small p-values: meaning that those two samples are  the same based on t-stattistics
+
+
+
+
+#MW U test on samples
+MWU_samples <- data.frame(matrix(ncol = 4, nrow = choose(nrow(df_dup_final),2)))
+x <- c("W.value", "p.value", "bonferroni", "BH")
+colnames(MWU_samples) <- x
+
+mwu.w <- data.frame(matrix(ncol = nrow(df_dup_final), nrow = nrow(df_dup_final)))
+mwu.p <- data.frame(matrix(ncol = nrow(df_dup_final), nrow = nrow(df_dup_final)))
+mwu.name <- data.frame(matrix(ncol = nrow(df_dup_final), nrow = nrow(df_dup_final)))
+#sample pairwise comparisons forloop
+for(i in 1:(nrow(df_dup_final)-1)){
+  for(j in (i+1):nrow(df_dup_final)){
+    mwu.w[i,j] <- wilcox.test(df_dup_final[i,], df_dup_final[j,], paired = F)$statistic #cuz they are all independent samples!
+    mwu.p[i,j] <- round(wilcox.test(df_dup_final[i,], df_dup_final[j,], paired = F)$p.value, 4)
+    mwu.name[i,j] <- paste0(i, "+", j)
+  }
+}
+
+rownames(MWU_samples) <- na.omit(melt(t(mwu.name))$value)#Extracting triangle values row by row 
+MWU_samples[,1] <- na.omit(melt(t(mwu.w))$value)
+MWU_samples[,2] <- na.omit(melt(t(mwu.p))$value)
+
+bonf <- c()
+bonf <- p.adjust(MWU_samples$p.value, method = "bonferroni")
+
+fdr <- c()
+fdr <- p.adjust(MWU_samples$p.value, method = "BH")
+
+MWU_samples[,3] <- bonf
+MWU_samples[,4] <- fdr
+
+
+MWU_samples
+MWU_samples[order(MWU_samples$p.value),] #based on small p-values: meaning that those two samples are not the same based on MWU
+
+MWU_samples[order(MWU_samples$p.value, decreasing = T),] #based on small p-values: meaning that those two samples are  the same based on MWU
+
+#t.test on genes - too much to do... choose(ncol(df_dup_final),2)
+
+#MW U test on genes
+
+
+
+```
+
+
+
+#Unsupervised 
+PCA 
+sparse PCA 
+sparse independent PCA - http://mixomics.org/methods/ipca/ 
+Canonical discrimant analysis 
+
+
+hierarchical clustering (try different distance matrix)
+K-means clustering (try different distance matrix)
+model-based clustering (try different distance matrix)
+
+t-sne 
+```{r}
+#PCA
+pca <- prcomp(df_dup_final, scale = T)
+#head(pca$rotation[,1:4], 30) #first four loadings
+
+eigen1 <- (pca$sdev)^2 #eigenvalues
+
+eigen_data <- matrix(0, nrow = round(sum(eigen1),0), ncol = 3)
+if (length(eigen1) < sum(eigen1)){
+  eigen1 <- c(eigen1, rep(0, sum(eigen1) - length(eigen1) + 1)) #Sometimes delete 1
+}
+
+colnames(eigen_data) <- c("eigenvalue", "percentage", "cumulative.percentage")
+rownames(eigen_data) <- paste0("comp", 1:sum(eigen1))
+
+eigen_data[,1] <- round(eigen1, 4)
+percentage <- apply(as.matrix(eigen1), 2, sum(eigen1), FUN = "/") * 100
+eigen_data[,2] <- round(percentage, 4)
+
+cum_fun <- function(x){ #x should be n * 1 column matrix
+    for (i in 2:nrow(x)){
+      x[i,] <- x[i-1,] + x[i,]
+    }
+  return(x)
+}
+cumulative <- cum_fun(percentage) #or use cumsum!!!
+eigen_data[,3] <- cumulative
+print(head(eigen_data, 100))
+
+
+barplot(eigen_data[,1], main = "Bar-chart of eigenvalues", names = c(paste("PC", 1:sum(eigen1))), 
+        cex.names = 0.5)
+
+ggplot(as.data.frame(pca$x[,1:2]), aes(x = PC1, y = PC2)) + geom_point() + 
+  geom_text(aes(label = rownames(pca$x), hjust = -0.4), size = 3) + ggtitle("PC plot")
+
+
+plot(PCA(df_dup_final))
+
+
+comp_comb <- pca$x[,1:2]
+comp_comb <- cbind(comp_comb, 0)
+colnames(comp_comb)[3] <- "Group"
+comp_comb <- as.data.frame(comp_comb)
+comp_comb$Group <- grp.lbl
+
+graph1 <- ggplot(comp_comb, aes(x = PC1, y = PC2, colour = Group))
+graph1 <- graph1 + geom_point(size = 4) + labs(title = "ELS") + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0) + 
+  geom_text(aes(label = rownames(comp_comb), col = Group, hjust = -0.3), size = 3)
+graph1
+
+
+#Quality of individuals representation
+options(scipen=999) #remove scientific number
+quality <- function(pca, standardized){
+  new <- data.frame(matrix(NA, ncol=ncol(pca), nrow=nrow(pca)))
+  for (i in 1: nrow(pca)){
+    new[i,] <- pca[i,]^2 / sum((standardized[i,])^2)
+  }
+  return(new)
+}
+quality_mat <- quality(pca$x, scale(df_dup_final))
+round(quality_mat, 4)
+
+
+rowSums(quality_mat) #check whether the sum of row is 1
+
+paste("Best represented gene on the first PC:", rownames(df_dup_final)[which.max(quality_mat[,1])])
+
+paste("Best represented gene on the second PC:", rownames(df_dup_final)[which.max(quality_mat[,2])])
+
+
+paste("Worst represented gene on the first PC:", rownames(df_dup_final)[which.min(quality_mat[,1])])
+
+paste("Worst represented gene on the second PC:", rownames(df_dup_final)[which.min(quality_mat[,2])])
+
+
+fviz_pca_ind(pca, axes = c(1,2), #simply changed it to change the component
+             col.ind = "cos2", # Color by the quality of representation
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+
+#contributions of the individuals to each extracted PC
+options(scipen=999)
+contribution <- function(pca, eigen){
+  new2 <- data.frame(matrix(NA, ncol=ncol(pca), nrow=nrow(pca)))
+  for (i in 1:ncol(pca)){
+    new2[,i] <- (pca[,i]^2 / (eigen)[i]) * 100 / (nrow(pca) - 1)
+  }
+  return(new2)
+}
+contribution_mat <- contribution(pca$x, eigen1)
+colSums(contribution_mat) #Check whether the sum of column is 100; as you can see, the PC12 would give wrong answer, as the eigen value is extremely small... IT means PC12 is not valuable... (barely containing any variation)
+
+contribution_mat
+
+par(mfrow = c(2,3))
+for (i in 1:dim(contribution_mat)[2]){
+  plot(contribution_mat[,i], xlab = "observation", ylab = paste("contributions on PC", i))
+  abline(h = 100/(nrow(pca$x) - 1), lty = 1, col = "red")
+}
+
+#Print out the 90 percentile of the contribution for each PC
+for (i in 1:12){
+  paste("PC", i,":",round(quantile(contribution_mat[,i], 0.9), 7))
+}
+print("So, any of points given above numbers for each PC can be regarded as outliers")
+print("and it is better to take them out, as they have influences.")
+print("Influential genes are below:")
+
+for (i in 1:ncol(contribution_mat)){
+  for (j in 1:nrow(contribution_mat)){
+    if(round(quantile(contribution_mat[,i], 0.90), 7) < contribution_mat[j,i]){
+      print(paste("Influential genes for PC", i," are", rownames(df_dup_final)[j]))
+    }
+  }
+}
+
+pcarank <- data.frame(PC1 = pca$x[,1])
+pcarank$Rank <- rank(pcarank$PC1)
+order <- pcarank[order(pcarank$Rank), ]
+order$name <- rownames(order)
+order$name <- factor(order$name, levels = order$name[order(order$PC1)])
+order
+
+ggplot(order, aes(x = name, y = PC1)) + geom_bar(stat = "identity") +
+  theme(text = element_text(size=8), axis.text.x = element_text(angle = 40, hjust = 1)) +
+  ggtitle("PC")
+
+
+biplot(pca$x, x)
+
+biplot(pca, scale = 0.3) 
+
+graph1 <- ggplot(comp_comb, aes(x = PC1, y = PC2, colour = Group))
+graph1 <- graph1 + geom_point(size = 4) + labs(title = "Adult") + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0) + 
+  geom_text(aes(label = rownames(comp_comb), col = Group, hjust = -0.3), size = 3)
+graph1
+```
+
+
+
+```{r}
+#sPCA
+ns <- readline(prompt="Enter an integer for the number of components: ")
+ns <- as.numeric(ns) #So, run PCA first, and then, see how many components you want to keep - so sparse PCA (sPCA) is quite helpful after you run PCA and get some idea of how many compoenents you want to keep 
+spca.result <- spca(df_dup_final, ncomp = ns, center = T, scale = T, 
+                    keepX = rep(ncol(df_dup_final) * 0.5, ns)) #KeepX = #of values for each componenet
+selectVar(spca.result, comp = 1) #comp can be 1 ~ ns
+spcas <- spca.result$x
+plotVar(spca.result, comp = 1:2, pch = 20)
+plotIndiv(spca.result, group= grp.lbl, legend = TRUE, title = 'Genes')
+
+
+#sIPCA
+#Same idea for sIPCA...
+ni <- readline(prompt="Enter an integer for the number of components: ")
+ni <- as.numeric(ni) 
+sipca.result <- sipca(df_dup_final2, ncomp = ni, mode = "deflation",
+                         scale = T, keepX = rep(ncol(df_dup_final) * 0.5, ns))
+
+plotIndiv(sipca.result, group= grp.lbl, legend = TRUE, title = 'Adult.SIPCA', X.label = "PC1", Y.label = "PC2")
+selectVar(sipca.result, comp = 1)#comp can be 1 ~ ni
+plotVar(sipca.result, comp = 1:2, pch = 20, title = "ELS.sIPCA")
+
+sipcas <- sipca.result$x
+```
+
+
+```{r}
+#canonical discriminannt analysis
+library(dummies)
+
+y <- grp.lbl #class
+numeric.y <- as.numeric(y)
+x <- pca$x[,1:5] #design matrix (but we can use pca, ipca, sipca = the reason why i did not use original data was since the # of columns is bigger than the # of rows, so it will cause singularity issue when we try to use solve function later. But i get that this is not the best idea, cause we will lose interpretation, but for now, as what we have this is the best decision i could make) - can change "1:5"
+c <- matrix(0, dim(x)[2], length(levels(y)))
+
+getC <- function(x, y, c){
+  combined <- as.data.frame(cbind(y = y, x = x))
+  combined$y <- as.factor(combined$y)  
+  splited <- split(combined, combined$y)
+  xjbar <- apply(x, 2, mean)
+  n <- nrow(combined)
+  
+  for(i in 1:length(levels(combined$y))){
+    coef <- nrow(splited[[i]]) / (n - 1)
+    for(j in 1:dim(x)[2]){
+      xkjbar <- mean(splited[[i]][,j + 1])
+      c[j,i] <- sqrt(coef) * (xkjbar - xjbar[j]) 
+    }    
+  }
+  return(c)
+}
+
+C <- getC(x, numeric.y, c)
+C
+
+within_variance <- function(predictors, response){
+  y <- dummy(response)
+  x <- scale(predictors, T, F)
+  x <- as.matrix(x)
+  n <- nrow(predictors) 
+  w <- 1/(n-1) * t(x) %*% (diag(n) - y %*% solve(t(y) %*% y) %*% t(y)) %*% x
+  return(w)
+}
+
+between_variance <- function(predictors, response){
+  y <- dummy(response)
+  x <- scale(predictors, T, F)
+  x <- as.matrix(x)
+  n <- nrow(predictors) 
+  b <- 1/(n-1) * t(x) %*% y %*% solve(t(y) %*% y) %*% t(y) %*% x
+  return(b)
+}
+
+
+total_variance <- function(predictors){
+  center <- scale(predictors, T, F)
+  n <- nrow(predictors) 
+  v <- 1/(n-1) * t(center) %*% center
+  return(v)
+}
+
+W <- within_variance(x, numeric.y)
+B <- between_variance(x, numeric.y)
+Total <- total_variance(numeric.y)
+
+w <- eigen(t(C) %*% solve(W) %*% C)$vectors 
+eigen(t(C) %*% solve(W) %*% C)$values 
+u <- solve(W) %*% C %*% w
+
+z <- as.matrix(x) %*% u
+z <- as.data.frame(z)
+
+z$type <- grp.lbl
+z_len <- ncol(z) - 1
+
+ggplot(data = z, aes(x = V1, y = V2, col = type)) + geom_point()
+ggplot(data = z, aes(x = V1, y = V3, col = type)) + geom_point() 
+ggplot(data = z, aes(x = V2, y = V3, col = type)) + geom_point()
+
+cor(z[,-ncol(z)], df_dup_final) #correlation of CDA and our data
+#=========================Compare with PCA==============================
+library(amap)
+pca2 <- acp(df_dup_final)
+
+score2 <- as.data.frame(pca2$scores)
+score2$class <- grp.lbl
+
+ggplot(score2, aes(x = `Comp 1`, y = `Comp 2`, col = class)) + geom_point() #Seems like CDA with PCA can outperform PCA itself only
+#==========================================================
+
+
+#Create a matrix of size n × K, with the squared Mahalanobis distances d2(xi, gk) of each observation xi (i.e. each sample) to the each of the k centroids gk. The squared distance, with the Mahalanobis metric.
+#So, it would be way better if we calculate the distance with the original data matrix,, but since we have more columns... we cannot... 
+x <- as.data.frame(pca$x[,1:5]) 
+mah <- matrix(0, nrow(x), z_len)
+pure.len <- ncol(x)
+x$class <- grp.lbl
+splited3 <- split(x, x$class)
+
+for(j in 1:z_len){
+  gk <- apply(splited3[[j]][,-(pure.len+1)], 2, mean)
+  for(i in 1:nrow(x)){
+    factor <- as.matrix(x[i, -(pure.len+1)] - gk)
+    mah[i, j] <- factor %*% solve(W) %*% t(factor)
+  }
+}
+
+#assign each observation to the class Gk for which the Mahalanobis distance d2(xi, gk) is the smallest. And create a confussion matrix comparing the actual class versus the predicted class. (20 pts)
+assign <- data.frame(observation = paste("observation",1:nrow(mah)), group = 0)
+for(i in 1:nrow(mah)){
+  assign[i,2] <- which.min(mah[i, ])
+}
+assign
+
+assign[,2] == as.numeric(grp.lbl)
+assign$actual <- grp.lbl
+table(assign$group, assign$actual)
+```
+
+
+
+
+
+```{r}
+#Cluster
+#c. model based
+library(mclust)
+
+fit <- Mclust(df_dup_final[,1:1500])
+plot(mclustBIC(df_dup_final[,1:1500]))
+
+plot(fit, what = "classification")
+plot(fit, what = "uncertainty")
+plot(fit, what = "density")
+
+summary(fit)
+
+cat("This is how they are classified:", fit$classification)
+cat("The matrix of probability for each observation is:")
+round(fit$z, 8) #number of columns is the same as the # of clusters
+cat("The uncertainties for each observation is:", fit$uncertainty)
+fit$BIC #same as mclustBIC(univ[,-1])
+
+paste("The optimal BIC value is", round(fit$bic, 5),
+      "and the optimal number of mixture components (clusters) are",
+      fit$G, "and the model where the optimal BIC occurs (best covariance structure) is",
+      fit$modelName) 
+
+
+summary(fit, parameters = T, classification = T)
+plot(fit, what = "BIC", dimens = c(2, 5))
+plot(fit, what = "classification", dimens = c(2, 5))
+plot(fit, what = "uncertainty", dimens = c(2, 5))
+
+
+plot(df_dup_final[,c(3,6)], col = fit$classification) #I just randomly picked two genes...
+points(t(fit$parameters$mean[c(2,5),]), col = 1:3, pch = 8, cex = 2)
+
+
+#Since there are so many genes, i think when we do model based cluster, its better for us to select a few genes, and perform it...
+i <- 3 #again, I just randomly picked two genes...
+j <- 6
+plot(df_dup_final[,i], df_dup_final[,j], xlab = colnames(df_dup_final)[i], ylab = colnames(df_dup_final)[j], type="n")
+
+for(k in 1:nrow(df_dup_final)){
+  text(df_dup_final[k,i], df_dup_final[k,j], grp.lbl, col = fit$classification[k])
+}
+points(t(fit$parameters$mean[c(2,5),]), col = 1:3, pch = 8, cex = 2)
+
+
+
+#b. kmeans
+set.seed(100)
+kmean <- kmeans(df_dup_final, 3) #Apply k-means to this data with the number of clusters equal to the best number found above...
+
+kmean
+summary(kmean)
+
+plot(df_dup_final[,c(3,6)], col = 3)
+points((kmean$centers[,c(2,5)]), col = 1:3, pch = 8, cex = 2) #Repeat the same thing with clusters found by kmeans now
+
+i <- 3
+j <- 6
+plot(df_dup_final[,i], df_dup_final[,j], xlab = colnames(df_dup_final)[i], ylab = colnames(df_dup_final)[j], type="n")
+
+for(k in 1:nrow(df_dup_final)){
+  text(df_dup_final[k,i], df_dup_final[k,j], grp.lbl, col = kmean$cluster[k])
+}
+points((kmean$centers[,c(2,5)]), col = 1:3, pch = 8, cex = 2) 
+
+
+
+
+#a. hirerarchial
+hc1<-hclust(dist(df_dup_final), "average")
+plot(hc1)
+plot(hc1, hang=-1, main="Hierarchial cluster: avg", ylab=NULL)
+
+hc2<-hclust(dist(df_dup_final), "complete")
+plot(hc2)
+plot(hc2, hang=-1, main="Hierarchial cluster: complete", ylab=NULL)
+
+hc3<-hclust(dist(df_dup_final), "single")
+plot(hc3)
+plot(hc3, hang=-1, main="Hierarchial cluster: single", ylab=NULL)
+
+
+library(dplyr)
+hierach <- df_dup_final %>% dist(method = "euclidean") %>% hclust(method = "average") #method = complete, single 
+hierach
+summary(hierach)
+plot(hierach, hang = -1, main = "Hierarchial; avg, euclidean", ylab = NULL)
+rect.hclust(hierach, k = fit$G, border="red") #use the fit that we got in the previous method for dividing into boxes
+
+
+
+grouping <- cutree(hierach, k = fit$G) #use the fit that we got in the previous method for dividing into boxes
+print("Here is a clustering results:")
+print(grouping)
+
+#One of the problems of K-means algorithm is that they need to define K before the algorithm runs, but hierarchial clustering does not need to define k beforehand. In hierarchial clustering, we need to define n-clusters (where n is the number of obervations), and then, generally merge from bottom to up, until there is only one cluster left. So, we are basically repeatedly combining the two clusters with the shortest distance each other. And, there are different types of cluster dissimilarity measures (linkage).
+
+
+hc.complete <- df_dup_final %>% dist(method = "euclidean") %>% hclust(method = "complete")
+hc.average <- df_dup_final %>% dist(method = "euclidean") %>% hclust(method = "average")
+hc.single <- df_dup_final %>% dist(method = "euclidean") %>% hclust(method = "single")
+hc.complete2 <- df_dup_final2 %>% dist(method = "euclidean") %>% hclust(method = "complete")
+hc.average2 <- df_dup_final2 %>% dist(method = "euclidean") %>% hclust(method = "average")
+hc.single2 <- df_dup_final2 %>% dist(method = "euclidean") %>% hclust(method = "single")
+
+
+par(mfrow = c(2,3))
+plot(hc.complete, ylab = "", main = "ELS-comp")
+rect.hclust(hc.complete, k = 3, border="red")
+plot(hc.average, ylab = "",main = "ELS-avg")
+rect.hclust(hc.average, k = 3, border="red")
+plot(hc.single,ylab = "", main = "ELS-sing")
+rect.hclust(hc.single, k = 3, border="red")
+
+
+plot(hc.complete2, ylab = "", main = "Adult-comp")
+rect.hclust(hc.complete2, k = 3, border="red")
+plot(hc.average2, ylab = "",main = "Adult-avg")
+rect.hclust(hc.average2, k = 3, border="red")
+plot(hc.single2, ylab = "",main = "Adult-sing")
+rect.hclust(hc.single2, k = 3, border="red")
+
+
+
+
+a <- cutree(hc.complete, k = 3) #make confusion matrix to compare the methods how well they agree each other
+b <- cutree(hc.average, k = 3)
+c <- cutree(hc.single, k = 3)
+table(a, b)
+table(a, c)
+table(b, c)
+```
+
+
+```{r}
+#t-SNE
+#https://www.r-bloggers.com/playing-with-dimensions-from-clustering-pca-t-sne-to-carl-sagan/
+library(Rtsne)
+library(grDevices)
+colors = rainbow(length(unique(grp.lbl)))
+names(colors) = unique(grp.lbl)
+par(mgp=c(2.5,1,0))
+
+
+
+tsne <- Rtsne(df_dup_final, dims = 2, perplexity=4, verbose=T, max_iter = 500)
+plot(tsne$Y, t='n', main="tsne for RNAseq JQ", cex.main=2, cex.lab=1.5)
+text(tsne$Y, labels=grp.lbl, col=colors[grp.lbl]) #col=colors()[as.numeric(grp.lbl) + 40]
+
+
+
+tsne_plot <- function(dims=3, perpl=4,iterations=500,learning=200){
+  set.seed(2019) 
+  tsne <- Rtsne(df_dup_final, dims = dims, perplexity=perpl, verbose=T, max_iter=iterations, eta=learning)
+  plot(tsne$Y, t='n', main = print(paste0("Dim = ",dims, ", perplexity = ",perpl,
+                                          ", max_iter = ",iterations, ", learning rate = ",learning)), 
+       xlab="tSNE dimension 1", 
+       ylab="tSNE dimension 2", cex.main=1, cex.lab=1.5)
+  text(tsne$Y, labels=grp.lbl, col=colors[grp.lbl])
+}
+
+perplexity_values <- c(1,2,3,4)
+sapply(perplexity_values,function(i){tsne_plot(perpl=i)})
+
+iteration_values <- c(10,50,100,1000)
+sapply(iteration_values,function(i){tsne_plot(iterations=i)})
+
+learning_values <- c(20,200,2000)
+sapply(learning_values,function(i){tsne_plot(learning=i)})
+
+dim_values <- c(2,3)
+sapply(perplexity_values,function(i){tsne_plot(dims=i)})
+
+
+
+d_tsne_1 <- as.data.frame(cbind(tsne$Y, label = 0))
+d_tsne_1$label <- grp.lbl
+
+ggplot(d_tsne_1, aes(x=V1, y=V2, col = label)) +  
+  geom_point(size=1) +
+  guides(colour=guide_legend(override.aes=list(size=8))) +
+  xlab("") + ylab("") +
+  ggtitle("t-SNE") +
+  theme_light(base_size=10) +
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank()) 
+
+
+
+
+#Compare with other methods
+d_tsne_1_original <- d_tsne_1 #tsne
+
+fit_cluster_kmeans <- kmeans(scale(d_tsne_1[,-(ncol(d_tsne_1))]), length(levels(grp.lbl))) #kmeans cluster
+d_tsne_1_original$cl_kmeans = factor(fit_cluster_kmeans$cluster)
+
+fit_cluster_hierarchical=hclust(dist(scale(d_tsne_1[,-(ncol(d_tsne_1))]))) #hierarchial cluster
+d_tsne_1_original$cl_hierarchical = factor(cutree(fit_cluster_hierarchical, k=length(levels(grp.lbl)))) 
+
+
+
+plot_cluster <- function(data, var_cluster, palette){
+  ggplot(data, aes_string(x="V1", y="V2", color=var_cluster)) +
+  geom_point(size=1) +
+  guides(colour=guide_legend(override.aes=list(size=6))) +
+  xlab("") + ylab("") +
+  ggtitle("") +
+  theme_light(base_size=10) +
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        legend.direction = "horizontal", 
+        legend.position = "bottom",
+        legend.box = "horizontal") + 
+    scale_colour_brewer(palette = palette) 
+}
+
+
+plot_k <- plot_cluster(d_tsne_1_original, "cl_kmeans", "Accent")  
+plot_h <- plot_cluster(d_tsne_1_original, "cl_hierarchical", "Set1")
+
+
+grid.arrange(plot_k, plot_h,  ncol=2) #Seems like kmeans and hierarchial made the same clusters...
+```
+
+
+#Extra
+Enrichment analysis - gene set enrichment analysis from enrichR package (ecotoxx)
+
+multi-omics analysis. (i.e. Two-way orthogonal partial least square analysis, regularized CCA, adjusted RV, etc.) - (o2pls, mixomics)
+```{r}
+#rCCA
+#Classical CCA assumes that p < n and q < n, where p and q are the number of variables in each set. In the high dimensional setting usually encountered with biological data, where p + q >> n + 1, CCA cannot be performed
+
+grid1 <- seq(0.01, 0.2, length = 5) 
+grid2 <- seq(0.01, 0.2, length = 5)
+
+#Its so slow... so i cut the dimensions... this is demo so we can change it later. 
+cv <- tune.rcc(df_dup_final[,1:300], df_dup_final2[,1:300], grid1 = grid1, grid2 = grid2, validation = "loo")
+result <- rcc(df_dup_final[,1:300], df_dup_final2[,1:300], ncomp = 3, lambda1 = cv$opt.lambda1, lambda2 = cv$opt.lambda2)
+plot(result, scree.type = "barplot")
+round(result$cor, 4)
+
+
+plotIndiv(result, comp = 1:2,
+          group = grp.lbl, rep.space = "XY-variate",
+          legend = TRUE, title = 'rCCA')
+plotIndiv(result, comp = 1:2,
+          group = grp.lbl2,
+          legend = TRUE, title = 'rCCA')
+
+result$variates#These are the canonical variates for the two data sets - it is analous to PCs from PCA. 
+```
+
+
+
+```{r}
+#PLS & sPLS
+library(mixOmics)
+
+#PLS
+result.pls <- pls(df_dup_final[,1:1000], df_dup_final2[,1:400], ncomp = 10)  # where ncomp is the number of dimensions/components to choose
+tune.pls <- perf(result.pls, validation = 'loo', criterion = 'all', progressBar = FALSE) #this is to find how many components to keep
+
+plot(tune.pls$Q2.total) #seems like i can only keep 2 components- can use R2 or MSEP 
+abline(h = 0.0975)
+
+
+plotIndiv(result.pls, comp = 1:2, rep.space= 'Y-variate', group = grp.lbl,
+          legend = TRUE, title = 'PLS comp 1 annd 2 Block Y')
+
+plotIndiv(result.pls, comp = 1:2, rep.space= 'X-variate', group = grp.lbl,
+          legend = TRUE, title = 'PLS comp 1 annd 2 Block X')
+
+plotIndiv(result.pls, comp = 1:2, rep.space= 'XY-variate', group = grp.lbl,
+          legend = TRUE, title = 'PLS comp 1 annd 2 Block XY')
+
+
+plotIndiv(result.pls, comp = 1:2, rep.space= 'Y-variate', group = grp.lbl2,
+          legend = TRUE, title = 'PLS comp 1 annd 2 Block Y')
+
+plotIndiv(result.pls, comp = 1:2, rep.space= 'X-variate', group = grp.lbl2,
+          legend = TRUE, title = 'PLS comp 1 annd 2 Block X')
+
+plotIndiv(result.pls, comp = 1:2, rep.space= 'XY-variate', group = grp.lb2,
+          legend = TRUE, title = 'PLS comp 1 annd 2 Block XY')
+
+
+col.tox <- color.mixo(as.numeric(grp.lbl))
+plotIndiv(result.pls, ind.names = F, axes.box = "both", col = col.tox, style = '3d')
+
+
+plotVar(result.pls, comp =1:2, cex = c(4, 5))
+
+# define red and green colors for the edges
+color.edge <- color.GreenRed(50)  
+# to save as a pdf
+network(result.pls, comp = 1:2, shape.node = c("rectangle", "rectangle"),
+        color.node = c("white", "pink"), color.edge = color.edge, threshold = 0.8)
+
+cim(result.pls, comp = 1:3, margins = c(7, 7))
+```
+
+
+```{r}
+# SPLS
+ncomp = 10
+result.spls <- spls(df_dup_final[,1:1000], df_dup_final2[,1:400], ncomp = ncomp, keepX = c(rep(10, ncomp)), mode = 'invariant')
+tune.spls <- perf(result.spls, validation = 'Mfold', folds = 10,
+                  criterion = 'all', progressBar = FALSE)
+
+plot(tune.spls$Q2.total) #seems like i can only keep 1 component- can use R2 or MSEP 
+abline(h = 0.0975)
+
+
+plotIndiv(result.spls, comp = 1:2, rep.space= 'Y-variate', group = grp.lbl,
+          legend = TRUE, title = 'sPLS comp 1 annd 2 Block Y')
+
+plotIndiv(result.spls, comp = 1:2, rep.space= 'X-variate', group = grp.lbl,
+          legend = TRUE, title = 'sPLS comp 1 annd 2 Block X')
+
+plotIndiv(result.spls, comp = 1:2, rep.space= 'XY-variate', group = grp.lbl,
+          legend = TRUE, title = 'sPLS comp 1 annd 2 Block XY')
+
+
+plotIndiv(result.spls, comp = 1:2, rep.space= 'Y-variate', group = grp.lbl2,
+          legend = TRUE, title = 'sPLS comp 1 annd 2 Block Y')
+
+plotIndiv(result.spls, comp = 1:2, rep.space= 'X-variate', group = grp.lbl2,
+          legend = TRUE, title = 'sPLS comp 1 annd 2 Block X')
+
+plotIndiv(result.spls, comp = 1:2, rep.space= 'XY-variate', group = grp.lb2,
+          legend = TRUE, title = 'sPLS comp 1 annd 2 Block XY')
+
+
+col.tox <- color.mixo(as.numeric(grp.lbl))
+plotIndiv(result.spls, ind.names = F, axes.box = "both", col = col.tox, style = '3d')
+
+
+plotVar(result.spls, comp = 1:2, cex = c(4, 5))
+
+# define red and green colors for the edges
+color.edge <- color.GreenRed(50)  
+# to save as a pdf
+network(result.spls, comp = 1:2, shape.node = c("rectangle", "rectangle"),
+        color.node = c("white", "pink"), color.edge = color.edge, threshold = 0.8)
+
+cim(result.spls, comp = 1:3, margins = c(7, 7))
+```
+
+
+```{r}
+#o2pls
+set.seed(2019)
+library(OmicsPLS)
+
+#for some reason, it is not running ...
+rownames(df_dup_final2) <- rownames(df_dup_final)
+
+table_cv <- crossval_o2m_adjR2(df_dup_final2, df_dup_final,
+                               a = 1:5, 
+                               ax = c(0, 1, 3, 5, 7, 10), 
+                               ay = c(0, 1, 3, 5, 7, 10), nr_folds = 4, nr_cores = 4)
+
+table_cv <- table_cv[order(table_cv$MSE), ]
+table_cv <- head(table_cv)#I can show them to the users
+
+for(i in 1:5){ #output the best optimal 5 models based on MSE
+  name <- paste0("fit", i)
+  assign(name, o2m(df_dup_final, df_dup_final2, table_cv$n[i], table_cv$nx[i], table_cv$ny[i]))
+}
+
+table_cv
+
+summary_variance <- data.frame(matrix(ncol = 14, nrow = 5))
+x <- c("n", "nx", "ny", "X - noise", "Y - noise", "X_joint", "Y_joint", "X_orth", "Y_orth",
+       "X_by_Y", "Y_by_X",
+       "X_joint_by_Y_joint", "Y_joint_by_X_joint", "MSE")
+colnames(summary_variance) <- x
+
+
+#This definitely needs to be shown!!!
+for(i in 1:5){ #output the best optimal 5 models based on MSE
+  name <- paste0("fit", i)
+  assign(name, o2m(df_dup_final, df_dup_final2, table_cv$n[i], table_cv$nx[i], table_cv$ny[i]))
+  getting <- get(name)
+  vec <- c(table_cv$n[i],
+           table_cv$nx[i],
+           table_cv$ny[i],
+           round(getting$R2X * 100, 3), 
+           round(getting$R2Y * 100, 3),
+           round(getting$R2Xcorr * 100, 3), 
+           round(getting$R2Ycorr * 100, 3), 
+           round(getting$R2X_YO * 100, 3),
+           round(getting$R2Y_XO * 100, 3),
+           round(getting$R2Xhat * 100, 3),
+           round(getting$R2Yhat * 100, 3),
+           round(getting$R2Xhat/getting$R2Xcorr * 100, 3),
+           round(getting$R2Yhat/getting$R2Ycorr * 100, 3),
+           table_cv$MSE[i]
+           )
+  summary_variance[i,] <- vec
+}
+
+summary_variance
+
+fit <- fit5 #change this later
+
+#variance table2 & SSQ plots (joint, ortho, noise) & o2pls model joint summary [in the paper Stacey Reinke "OnPLS xxx"]
+summary_score_noise <- data.frame(matrix(ncol = 6, nrow = 2))
+x <- c("X_joint_score", "X_ortho_score", 
+       "Y_joint_score", "Y_ortho_score", 
+       "X_noise", "Y_noise"
+       )
+colnames(summary_score_noise) <- x
+rownames(summary_score_noise) <- c("Absolute", "Relative")
+
+summary_score_noise[1,] <- c(sum(summary(fit)[12]$flags$varXjoint),
+                             sum(summary(fit)[12]$flags$varXorth),
+                             sum(summary(fit)[12]$flags$varYjoint),
+                             sum(summary(fit)[12]$flags$varYorth),
+                             (summary(fit)[12]$flags$ssqX - sum(summary(fit)[12]$flags$varXjoint) - sum(summary(fit)[12]$flags$varXorth)),
+                             (summary(fit)[12]$flags$ssqY - sum(summary(fit)[12]$flags$varYjoint) - sum(summary(fit)[12]$flags$varYorth))
+                             )
+
+summary_score_noise[2,] <- c(round(fit$R2Xcorr * 100, 3), 
+                             (round(fit$R2X * 100, 3) - round(fit$R2Xcorr * 100, 3)),
+                              round(fit$R2Ycorr * 100, 3),
+                              (round(fit$R2Y * 100, 3) - round(fit$R2Ycorr * 100, 3)),
+                             (100 - round(fit$R2X * 100, 3)),
+                             (100 - round(fit$R2Y * 100, 3))
+                             )
+  
+
+summary_score_noise
+
+
+
+model_summary <- data.frame(matrix(ncol = 3, nrow = summary(fit)[12]$flags$n + 1))
+x <- c("component", "ELS", "Adult")
+colnames(model_summary) <- x
+y <- c(1:summary(fit)[12]$flags$n, "sum")
+model_summary[,1] <- y
+
+first <- c()
+second <- c()
+for (i in 1:summary(fit)[12]$flags$n){
+  first[i] <- summary(fit)[12]$flags$varXjoint[i]/summary(fit)[12]$flags$ssqX
+  second[i] <- summary(fit)[12]$flags$varYjoint[i]/summary(fit)[12]$flags$ssqY
+}
+
+first <- c(first, sum(first))
+second <- c(second, sum(second))
+
+model_summary[,2] <- round(first, 4) * 100
+model_summary[,3] <- round(second, 4) * 100
+
+model_summary
+
+
+
+
+#3. SSQ
+xsq <- rbind(apply((fit$Tt %*% t(fit$W.))^2, 2, sum), 
+             apply((fit$T_Yosc %*% t(fit$P_Yosc.))^2, 2, sum), 
+             apply((fit$E)^2, 2, sum))
+rownames(xsq) <- c("joint", "orth", "noise")
+xsq <- t(xsq)
+sum_xsq <- apply(xsq, 1, sum)
+
+xsq <- melt(xsq)
+xsq$Var2 <- factor(xsq$Var2, labels = c("joint", "orth", "noise"))
+
+ggplot(xsq, aes(x = Var1, y = value, fill = Var2)) + geom_bar(stat = "identity") +
+  labs(title = "ELS: SSQ per variable", y = "SSQ", x = "Variable") +
+   theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  guides(fill=guide_legend(title="Types"))
+
+
+ggplot(xsq, aes(x = Var1, y = value, fill = Var2)) + geom_bar(stat = "identity", position = "fill") +
+  labs(title = "ELS: SSQ per variable (normalized)", y = "SSQ", x = "Variable") +
+   theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  guides(fill=guide_legend(title="Types"))
+
+melt(sort(sum_xsq, decreasing = T)[1:10])
+
+
+
+
+
+ysq <- rbind(apply((fit$U %*% t(fit$C.))^2, 2, sum), 
+             apply((fit$U_Xosc %*% t(fit$P_Xosc.))^2, 2, sum), 
+             apply((fit$Ff)^2, 2, sum))
+rownames(ysq) <- c("joint", "orth", "noise")
+ysq <- t(ysq)
+sum_ysq <- apply(ysq, 1, sum)
+
+ysq <- melt(ysq)
+ysq$Var2 <- factor(ysq$Var2, labels = c("joint", "orth", "noise"))
+
+ggplot(ysq, aes(x = Var1, y = value, fill = Var2)) + geom_bar(stat = "identity") +
+  labs(title = "Adult: SSQ per variable", y = "SSQ", x = "Variable") +
+   theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  guides(fill=guide_legend(title="Types")) 
+
+
+ggplot(ysq, aes(x = Var1, y = value, fill = Var2)) + geom_bar(stat = "identity", position = "fill") +
+  labs(title = "Adult: SSQ per variable (normalized)", y = "SSQ", x = "Variable") +
+   theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  guides(fill=guide_legend(title="Types"))
+
+melt(sort(sum_ysq, decreasing = T)[1:10])
+
+
+
+
+
+
+#First joint loadings of X
+load1x <- rbind(fit$W.[,1], fit$P_Yosc.[,1])
+rownames(load1x) <- c("joint", "orth")
+load1x <- t(load1x)
+abssum_load1x <- apply(abs(load1x), 1, sum)
+melt(sort(abssum_load1x, decreasing = T)[1:10])
+melt(sort(abs(load1x[,1]), decreasing = T)[1:10])
+melt(sort(abs(load1x[,2]), decreasing = T)[1:10])
+
+load1x <- melt(load1x)
+load1x$Var2 <- factor(load1x$Var2, labels = c("joint", "orth"))
+
+ggplot(load1x, aes(x = Var1, y = value, fill = Var2)) + geom_bar(stat = "identity") +
+  labs(title = "ELS: Loadings", y = "Loading value", x = "Variable") +
+   theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  guides(fill=guide_legend(title="Types"))
+
+
+
+#First joint loadings of Y
+load1y <- rbind(fit$C.[,1], fit$P_Xosc.[,1])
+rownames(load1y) <- c("joint", "orth")
+load1y <- t(load1y)
+abssum_load1y <- apply(abs(load1y), 1, sum)
+melt(sort(abssum_load1y, decreasing = T)[1:10])
+melt(sort(abs(load1y[,1]), decreasing = T)[1:10])
+melt(sort(abs(load1y[,2]), decreasing = T)[1:10])
+
+load1y <- melt(load1y)
+load1y$Var2 <- factor(load1y$Var2, labels = c("joint", "orth"))
+
+ggplot(load1y, aes(x = Var1, y = value, fill = Var2)) + geom_bar(stat = "identity") +
+  labs(title = "Adult: Loadings", y = "Loading value", x = "Variable") +
+   theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  guides(fill=guide_legend(title="Types"))
+
+
+
+
+#table of variables with top loadings (joint and orth)
+#Joint X
+for (i in 1:dim(fit$W.)[2]){
+  name <- paste0("top_joint_x_", i)
+  assign(name, data.frame(matrix(ncol = 2, nrow = 10)))
+  
+  getting <- get(name)
+  colnames(getting) <- c("Symbol", "Loading Value")
+  
+  getting[,1] <- names(head(sort(abs(fit$W.[,i]),decreasing=TRUE, index.return = T)$x, 10))
+  getting[,2] <- fit$W.[,i][head(sort(abs(fit$W.[,i]),decreasing=TRUE, index.return = T)$ix, 10)]
+  assign(name, getting)
+}
+
+
+
+
+#quality of predictions of X with Y
+for(i in 1:dim(fit$Tt)[2]){
+  name <- paste0("qual", i)
+  assign(name, lm(fit$Tt[,i] ~ fit$U[,i]))
+  getting <- get(name)
+  print(summary(getting)[4]) #coefficients
+  print(summary(getting)[9]) #adj R^2
+  f <- summary(getting)$fstatistic
+  print(pf(f[1], f[2], f[3], lower.tail=FALSE)) #fstatistics p-value
+  
+  par(mfrow = c(2, 2))
+  plot(getting, which = 1)
+  plot(getting, which = 4)
+  plot(getting, which = 5)
+  plot(fit$U[,i], fit$Tt[,i], main = name, xlab = paste0(name, "_Yscore"), ylab = paste0(name, "_Xscore"));abline(lm(fit$Tt[,i] ~ fit$U[,i]), col = "red")
+}
+
+
+
+#quality of predictions of Y with X
+for(i in 1:dim(fit$U)[2]){
+  name <- paste0("Score", i)
+  assign(name, lm(fit$U[,i] ~ fit$Tt[,i]))
+  getting <- get(name)
+  print(summary(getting)[4]) #coefficients
+  print(summary(getting)[9]) #adj R^2
+  f <- summary(getting)$fstatistic
+  print(pf(f[1], f[2], f[3], lower.tail=FALSE)) #fstatistics p-value
+  
+  par(mfrow = c(2, 2))
+  plot(getting, which = 1)
+  plot(getting, which = 4)
+  plot(getting, which = 5)
+  plot(fit$Tt[,i], fit$U[,i], main = name, xlab = paste0(name, "_Xscore"), ylab = paste0(name, "_Yscore"));abline(lm(fit$U[,i] ~ fit$Tt[,i]), col = "red")
+}
+
+```
+
+
+
+
+#Supervised - regression and classification (maybe model selection using bic, cp, AIC, etc)
+SVM
+linear regression 
+
+And, our null $H_0$ is $\beta_{neck}$ = $\beta_{chest}$ = $\beta_{abdomen}$ = $\beta_{hip}$ = $\beta_{thigh}$ = $\beta_{knee}$ = $\beta_{ankle}$ = $\beta_{bicep}$ = $\beta_{forearm}$ = $\beta_{wrist}$ = 0.       
+
+Then, $F_{q,\ n-p-1}\ \sim\ \frac{(RSS(m)\ -\ RSS(M))/q}{RSS(M)/n-p-1}$, where RSS(m) is the RSS for the small model (= reduced model), RSS(M) is the RSS for the big model (= full model), q is the number of variables dropped (or number of constraints), and p is the number of explanatory variables from the full model. 
+
+logistic regression
+
+
+PCR 
+
+
+PLS-DA 
+
+
+
+PLS regression
+
+
+
+LDA - 245 lec8, 245 HW5, 154 lab10, 154 lab9, 154 lab11
+QDA- 245 lec8, 245 HW1, 154 lab10, 154 lab9
+tree-based algorithms (decision tree, random forest, boosted tree, classifcation tree)- 245 lec8, 245 HW5, 154 lab12 
+K-NN algorithms- 245 lec8, 245 HW5, 154 lab10 (Model Selection)
+
+confusion matrix - table function, 154 HW5, 154 lab9
+AUC- 151a hw5
+ROC- 151a hw5, 154 lab11
+MSE- 154 HW4, 154 lab5
+RMSE
+CV- 154 HW4 (Model Selection), 154 lab10, 154 lab5
+
+ridge - 245 lec4, 245 HW2, 154 HW4, 154 lab7 (Model Selection)
+lasso - 245 lec4, 245 HW2, 154 HW4, 154 lab7
+```{r}
+#SVM
+library(kernlab) #ksvm()
+library(e1071) #svm()
+library(svmpath) #svmpath()
+
+set.seed(100)
+X1 <- c(rnorm(100), rnorm(100, mean = 4))
+X2 <- c(rnorm(100), rnorm(100, mean = 4))
+y <- factor(c(rep(0,100), rep(1,100)))
+df1 <- data.frame(X1, X2, y)
+
+set.seed(200)
+r <- c(runif(100, 1, 2), runif(100, 5, 6))
+theta <- runif(200, 0, 2 * pi)
+X1 <- r * cos(theta) + rnorm(200)
+X2 <- r * sin(theta) + rnorm(200)
+y <- factor(c(rep(0,100), rep(1,100)))
+df2 <- data.frame(X1, X2, y)
+
+pchs <- c(2,1)
+with(df1, plot(X1, X2, pch = pchs[y])) #first hundread is mean == 0...
+
+pchs <- c(2,1)
+with(df2, plot(X1, X2, pch = pchs[y]))
+
+C_vector <- c(0.01, 0.1, 1, 10, 100, 1000, 10000)
+
+dataset_list <- list(df1, df2)
+
+for (df in dataset_list) {
+  for (C in C_vector) {
+    fit <- ksvm(y~X1+X2, data = df, kernel = "vanilladot", C=C)
+    plot(fit, data=df)
+  }
+}
+
+
+deg_vector <- 2:5
+gam_vector <- c(0.01, 0.1, 1, 10, 100, 1000, 10000)
+dataset_list <- list(df1, df2)
+
+for (df in dataset_list) {
+  for (deg in deg_vector) {
+    fit <- ksvm(y~X1+X2, data = df, kernel = "polydot", kpar=list(degree=deg))
+    plot(fit, data=df)
+  }
+}
+
+
+for (df in dataset_list) {
+  for (gam in gam_vector) {
+    fit <- ksvm(y~X1+X2, data = df, kernel = "rbfdot", kpar=list(sigma=gam))
+    plot(fit, data=df)
+  }
+}
+
+
+
+
+
+#linear regression
+lmss <- lm(bodyfat ~ age + weight + height, data = data)
+plot(cooks.distance(lmss)) 
+
+
+
+lin_fit <- lm(bodyfat ~., data = partadata)
+summary(lin_fit)
+
+
+plot(lin_fit, which = 1)
+
+
+
+rss1 <- sum((partadata$bodyfat - lin_fit$fitted.values)^2)
+rss0 <- sum((partadata$bodyfat - lin_small_fit$fitted.values)^2)
+
+f <- ((rss0 - rss1) / 10) / (rss1 / (nrow(partadata) - 13 - 1))
+f
+
+pf(f, 10, nrow(partadata) - 13 - 1, lower.tail = F)
+
+
+
+
+#Logistic
+fit.glm<-glm(yb~age+weight+height, data=data.frame(data3), family="binomial")
+summary(fit.glm)
+
+# prediction / classification
+yb.hat<-rep(0,n)
+yb.hat[fitted(fit.glm) > 0.5]<-1
+sum(yb != yb.hat) / length(yb)
+
+
+logfit4 <- glm(heartdisease ~., family = binomial, data = cbind(newdesignonecolout2, response))
+summary(logfit4)
+
+#Classfication
+count(predict(logfit4, type = "response") > 0.5)
+
+one <- rep(1, nrow(response))
+yhat <- rep(0,nrow(response))
+yhat[fitted(logfit4) > 0.5] <- 1 #fitted outputs yhat as cutoff is 0.5
+mean(one != yhat) #not match only if yhat is classfied into 0 -> 0 is predicted to be 58.24%.
+
+
+#Misclassification rate
+mean(response != yhat)
+
+
+
+
+
+#PC regression
+#http://rstudio-pubs-static.s3.amazonaws.com/2897_9220b21cfc0c43a396ff9abf122bb351.html
+subset <- regsubsets(lpsa ~., data = as.data.frame(trainxscale_only), nvmax = 8)
+summary(subset)
+
+summary(subset)$bic
+paste("So, I keep the", which.min(summary(subset)$bic), "variables.")
+par(mfrow = c(2,2))
+plot(subset, scale = "r2")
+plot(subset, scale = "adjr2")
+plot(subset, scale = "Cp")
+plot(subset, scale = "bic")
+
+pcrfunc <- pcr(formula = lpsa ~., data = as.data.frame(trainxscale_only), validation = "CV") #validation
+summary(pcrfunc)
+
+paste("Tuning parameter is", which.min(pcrfunc$validation$PRESS[1,]))
+
+
+print("Associated coefficients of PCR:")
+pcrfunc$coefficients[,,which.min(pcrfunc$validation$PRESS)] 
+par(mfrow= c(1,2))
+pcrcoef <- apply(pcrfunc$coefficients, 3, function(x) x)
+coefplot(pcrfunc, comps = 1:8, separate = F, xlab = "Number of Components",
+         main = "Componen Coefficients", legendpos = "topright")
+
+matplot(t(pcrcoef), type= 's', lwd = 2, xlab = "Number of Components",
+         main = "Profile of Coefficients", ylab = "Coefficient")
+legend("topleft", colnames(pcrcoef), col = seq_len(ncol(pcrcoef)), cex = 0.6, fill = seq_len(ncol(pcrcoef)))
+
+#RMSEP(pcrfunc) #This is what we have from summary
+MSEP(pcrfunc) #Output MSE
+par(mfrow = c(1,1))
+validationplot(pcrfunc, val.type = "MSEP", ncomp = 1:8, type = "b",
+               legendpos = "topright", xlab = "Number of Components",
+               ylab = "Cross-Validation MSE", main = "CV-MSE")
+
+coef(pcrfunc, intercept = T)
+
+pcr_fit <- pcr(Salary ~ ., data = hitters, scale = TRUE, validation = "CV", segments=10)
+plot(pcr_fit$validation$PRESS[1, ] / n, type="l", main="PCR",
+     xlab="Number of Components", ylab="CV MSE")
+
+validationplot(pcr_fit, val.type = "MSEP", xlim = c(1,19))
+
+
+
+
+
+
+
+#PLS DA
+library(mixOmics)
+data(liver.toxicity)
+X <- as.matrix(liver.toxicity$gene)
+Y <- as.factor(liver.toxicity$treatment[, 4])             
+
+## PLS-DA function
+plsda.res <- plsda(X, Y, ncomp = 5) # where ncomp is the number of components wanted
+
+
+# this code takes ~ 1 min to run
+set.seed(2543) # for reproducibility here, only when the `cpus' argument is not used
+perf.plsda <- perf(plsda.res, validation = "Mfold", folds = 5, 
+                  progressBar = FALSE, auc = TRUE, nrepeat = 10) 
+# perf.plsda.srbct$error.rate  # error rates
+plot(perf.plsda, col = color.mixo(1:3), sd = TRUE, legend.position = "horizontal")
+
+
+
+# grid of possible keepX values that will be tested for each comp 
+list.keepX <- c(seq(10, 50, 10))
+set.seed(2543) # for reproducibility here,
+# to speed up the computational time, consider the cpu argument
+# take ~ 4 min to run
+tune.splsda <- tune.splsda(X, Y, ncomp = 4, validation = 'Mfold', folds = 5, 
+                           progressBar = FALSE, dist = 'max.dist',
+                           test.keepX = list.keepX, nrepeat = 10) #nrepeat 50-100 for better estimate
+# tune.splsda.srbct  #the various outputs
+
+
+tune.splsda$choice.keepX
+
+
+tune.splsda$choice.ncomp$ncomp
+
+
+choice.ncomp <- tune.splsda$choice.ncomp$ncomp
+choice.keepX <- tune.splsda$choice.keepX[1:choice.ncomp]
+## sPLS-DA function
+splsda.res <- splsda(X, Y, ncomp = choice.ncomp, keepX = choice.keepX) # where keepX is the number of variables selected for each components
+
+
+perf.splsda <- perf(splsda.res, validation = "Mfold", folds = 5, 
+                  progressBar = FALSE, auc = TRUE, nrepeat = 10) 
+
+perf.splsda$error.rate
+
+
+selectVar(splsda.res, comp = 1)$value
+
+
+splsda.train <- splsda(X[train, ], Y[train], ncomp = 4, keepX = c(10,20,10))
+test.predict <- predict(splsda.train, X[test, ], dist = "max.dist")
+# store prediction for the 4th component
+prediction <- test.predict$class$max.dist[,4] 
+# calculate the error rate of the model
+confusion.mat = get.confusion_matrix(truth = Y[test], predicted = prediction)
+get.BER(confusion.mat)
+
+
+
+
+
+
+
+#PLS regression
+plsrfunc <- plsr(formula = lpsa ~., data =as.data.frame(trainxscale_only), validation = "CV") #validation
+summary(plsrfunc)
+
+
+paste("Tuning parameter is", which.min(plsrfunc$validation$PRESS[1,]))
+
+print("Associated coefficients of PLSR:")
+plsrfunc$coefficients[,,which.min(plsrfunc$validation$PRESS)] 
+
+
+
+plscoef <- apply(plsrfunc$coefficients, 3, function(x) x)
+par(mfrow= c(1,2))
+coefplot(plsrfunc, comps = 1:8, separate = F, intercept = T, xlab = "Number of Components",
+         main = "Componen Coefficients", legendpos = "topright")
+
+matplot(t(plscoef), type= 's', lwd = 2, xlab = "Number of Components", main = "Profile of Coefficients", ylab = "Coefficient")
+legend("topleft", colnames(plscoef), col = seq_len(ncol(plscoef)), cex = 0.5, fill = seq_len(ncol(plscoef)))
+
+
+MSEP(plsrfunc) #Output MSE
+
+par(mfrow = c(1,1))
+validationplot(plsrfunc, val.type = "MSEP", ncomp = 1:8, type = "b",
+               legendpos = "topright", xlab = "Number of Components",
+               ylab = "Cross-Validation MSE", main = "CV-MSE")
+
+
+coef(plsrfunc, intercept = T)
+
+which.min(plsr_fit$validation$PRESS[1, ])
+
+
+
+head(pls_fit$loading.weights[,1], 10)
+
+
+head(pls_fit$scores[,1], 10)
+
+
+head(pls_fit$loadings[,1], 10)
+
+head(pls_fit$loading.weights[,1:19], 10)
+
+
+head(pls_fit$scores[,1:19], 10)
+
+
+head(pls_fit$loadings[,1:19], 10)
+
+head(pls_fit$coefficients, 10)
+
+
+
+
+
+
+
+
+
+
+```
+
+

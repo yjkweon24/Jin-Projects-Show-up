@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:p="http://primefaces.org/ui"
+                template="/template/_template.xhtml"
+                xmlns:f="http://xmlns.jcp.org/jsf/core">
+       <ui:define name="stacker"/>
+    <ui:define name="content">
+        <h:panelGrid style="padding: 20px 30px 20px 60px; line-height: 24px; font-size: 13px; font-family: Arial, Helvetica, Geneva; width: 90%">
+            <font style="font-size: 18px; color: #2779aa"><b>Data Format Overview</b></font>
+            <p>
+                A main type of file is required: TWO -omics files. 
+            </p>
+            <h2>Omics data formats</h2>
+            <p>
+                The following formats are accepted (accompanying example metadata files are also given below):  
+            </p>
+            <ul>
+                <li>
+                    csv (.csv) files: 
+                    <p>Here is one of the examples with sample meta-data. (<a href="../../resources/data/protein.csv" target="_blank">download</a>)</p>
+                    <p>Here is one of the examples without sample meta-data (a zero column instead: please read information below). (<a href="../../resources/data/metab.csv" target="_blank">download</a>)</p>
+                </li>                               
+                <li>
+                    Tab-separated (.txt) files: 
+                    <p>Here is one of the examples with sample meta-data. (<a href="../../resources/data/protein.txt" target="_blank">download</a>)</p>
+                    <p>Here is one of the examples with sample meta-data (a zero column instead: please read information below). (<a href="../../resources/data/metab.txt" target="_blank">download</a>)</p>
+                </li>
+            </ul>
+            <p>
+                <b>Notes when formatting your data:</b> 
+                <ul>
+                    <li>
+                        The first column of the -omics data file should be the sample names. And, the second column should be the sample meta-data. (i.e. Is cell derived from epithelial source?)
+                    </li>
+                    <li>
+                        If there is no sample meta-data for the -omics datasets, please have all zero instead for the second column.
+                    </li>
+                    <li>
+                        Two -omics data should be uploaded, and the <b>first two columns (sample names and sample meta-data) from two -omics should be the same. </b>  
+                    </li>
+                    <li>
+                        If the sample name is unknown, list the numbers instead. 
+                    </li>
+                    <li>
+                        Sample should be in the rows, and the feature should be in the columns.
+                    </li>
+                    <li>
+                        Both sample and feature names must be unique and consist of a combination of common English letters, underscores and numbers for naming purpose. 
+                        <b>Latin/Greek letters are not supported.</b>
+                    </li>
+                    <li>
+                        Using empty for missing values are <b>NOT</b> allowed. (Replace all the missing values with NA) 
+                    </li>
+                </ul>
+            </p>
+            <h3>Examples</h3>
+            <ul>
+                <li>
+                    <b>Download examples of two -omics (mRNA and protein) from NCI60 study: <a href="../../resources/data/mrna_protein_nci60.zip">download example</a></b>
+                    <p>When there is a sample meta-data:</p>
+                    <pre>
+               Sample_meta     Valine  Lactate	CH2	CH3	PC	SM	DB_FA
+Sample1        1                49	42	50	6	17	22	21
+Sample2        0                0	191	0	0	0	0	0
+Sample3        0                4	4	22	76	16	1	0
+Sample4        1                0	0	4	0	0	0	0
+                    </pre>
+                </li>
+                <li>
+                    <b>Download examples of two -omics (RNA and metabolite) from DILGOM study: <a href="../../resources/data/rna_metab_dilgom.zip">download example</a></b>
+                    <p>When there is no sample meta-data:</p>
+                    <pre>
+               Sample_meta     Valine  Lactate	CH2	CH3	PC	SM	DB_FA
+Sample1        0                49	42	50	6	17	22	21
+Sample2        0                0	191	0	0	0	0	0
+Sample3        0                4	4	22	76	16	1	0
+Sample4        0                0	0	4	0	0	0	0
+                    </pre>
+                </li>
+            </ul>
+
+        </h:panelGrid>
+    </ui:define>
+</ui:composition>
+
+

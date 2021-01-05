@@ -1,0 +1,21 @@
+"","name","description","explanataion"
+"1","Total Points","total points number of each player"," how many total points that each player gets"
+"2","Total Rebounds","total rebounds number for each player","a statistic awarded to a player who retrieves
+                   the ball after a missed field goal or free throw"
+"3","Assists","number of assists by each player","attributed to a player who passes the ball to a
+                   teammate in a way that leads to a score by field goal"
+"4","Steals","number of steals by each player","a steal occurs when a defensive player legally
+                   causes a turnover by his positive, aggressive action"
+"5","Blocks","number of blocks by each player","a block occurs when a defensive player legally 
+                   deflects a field goal attempt from an offensive player"
+"6","Missed Field Goals","number of missed field goals by each player","number of missed basket scored on any shot or
+                   tap other than a free throw"
+"7","Missed Free Throws","number of missed free throw by each player","missed unopposed attempts to score points from
+                   a restricted area on the court the free throw line"
+"8","Turnovers","number of turnovers by each player","a turnover occurs when a team loses possession of 
+                   the ball to the opposing team before a player takes
+                   a shot at his team's basket"
+"9","Games Played","games played by each player","total number of games that each player has played before"
+"10","Efficiency Index","efficiency index for each player","efficiency index we calculated by Eff Model"
+"11","Salary","salary for each player","salary earned by each player"
+"12","Position","position for each player","position for each player"

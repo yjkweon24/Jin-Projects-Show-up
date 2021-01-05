@@ -1,0 +1,81 @@
+"","name","type","description"
+"1","Name","categorical","player's name"
+"2","Nationality","categorical","player's nationality"
+"3","National_Position","categorical","Empty for retired or not playing this year.
+CAM: center attacking midfielder.
+CB: center back.
+CDM: center defensive midfielder.
+CM: center midfielder.
+GK: goalkeepr.
+LAM: left attacking midfielder. 
+LB: left back.
+LCB: left center back.
+LCM: left center midfielder. 
+LDM: left defensive midfielder.
+LF: left forward. 
+LM: left midfielder.
+LS: left stricker.
+LW: left wing midfielder/forward.
+LWB: left wing back. 
+RAM: right attacking midfielder.
+RB: right back.
+RCB: right center back.
+RCM: right center midfielder.
+RDM: rifght defensive midfielder.
+RF: right forward.
+RM: right midfielder.
+RS: right stricker.
+RW: right wing midfielder/forward. 
+RWB: right wing back.
+ST: stricker.
+Sub: substitution"
+"4","National_Kit","continuous","national kit number"
+"5","Club","categorical","club players belong to"
+"6","Club_Position","categorical","club positions (it might be different with national position)"
+"7","Club_Kit","continuous","club kit number"
+"8","Club_Joining","continuous","when players join the current club with date, month, and year"
+"9","Contract_Expiry","continuous","contract expiration year"
+"10","Rating","continuous","current rating at Fifa17"
+"11","Height","continuous","players' heights in cm"
+"12","Weight","continuous","players' weights in kg"
+"13","Preffered_Foot","categorical","players' preferred foot"
+"14","Birth_Date","continuous","players' birth date"
+"15","Age","continuous","players' ages"
+"16","Preffered_Position","categorical","players' preferred positions (it might be different with their positions)"
+"17","Work_Rate","categorical","players' general work rate for each game (High, Med, Low)"
+"18","Weak_foot","categorical","how bad their weak foot is from 1 to 5 (1 is bad)"
+"19","Skill_Moves","continuous","how skillful the players are from 1 to 5"
+"20","Ball_Control","continuous","how good the players are at controlling ball from 1 to 100"
+"21","Dribbling","continuous","how good the players are at dribbling ball from 1 to 100"
+"22","Marking","continuous","how good the players are at marking/defensing oppononents from 1 to 100"
+"23","Sliding_Tackle","continuous","how good the players are at sliding tackle opponents from 1 to 100"
+"24","Standing_Tackle","continuous","how good the players are at standing tackel opponents from 1 to 100"
+"25","Aggression","continuous","how players defense with auto tackles with good strength from 1 to 100"
+"26","Reactions","continuous","how fast players react with the ball from 1 to 100"
+"27","Attacking_Position","continuous","how players position and move wisely from 1 to 100"
+"28","Interceptions","continuous","how players intercept ball from oponents from 1 to 100"
+"29","Vision","continuous","how wide players' visions are from 1 to 100"
+"30","Composure","continuous","how stable players are with lots of pressures from 1 to 100"
+"31","Crossing","continuous","how players are good at crossing to their teammates from 1 to 100"
+"32","Short_Pass","continuous","how players are good at passing to nearby teammates from 1 to 100"
+"33","Long_Pass","continuous","how players are good at passing to far-away teammates from 1 to 100"
+"34","Acceleration","continuous","how good players are at acceleration from 1 to 100"
+"35","Speed","continuous","how usually fast players are from 1 to 100"
+"36","Stamina","continuous","players' stamina from 1 to 100"
+"37","Strength","continuous","players' strength when players fight for a ball from 1 to 100"
+"38","Balance","continuous","how good players balance without falling down or losing the ball from 1 to 100"
+"39","Agility","continuous","how quick their instant movement is from 1 to 100"
+"40","Jumping","continuous","how good at jumping from 1 to 100"
+"41","Heading","continuous","how good at heading from 1 to 100"
+"42","Shot_Power","continuous","how powerful players can shoot from 1 to 100"
+"43","Finishing","continuous","how good at scoring when players shoot from 1 to 100"
+"44","Long_Shots","continuous","how good at shooting with far distance from 1 to 100"
+"45","Curve","continuous","how good at curving the ball when shooting from 1 to 100"
+"46","Freekick_Accuracy","continuous","how accurate players can shoot for freekick from 1 to 100"
+"47","Penalties","continuous","how successful players are for penalty shot from 1 to 100"
+"48","Volleys","continuous","how good at volley shot from 1 to 100"
+"49","GK_Positioning","continuous","how good at positioning for GK from 1 to 100"
+"50","GK_Diving","continuous","how good at diving for GK from 1 to 100"
+"51","GK_Kicking","continuous","how good at kicking/passing for GK from 1 to 100"
+"52","GK_Handling","continuous","how good at handling the ball for GK from 1 to 100"
+"53","GK_Reflexes","continuous","how fast they can react for GK from 1 to 100"

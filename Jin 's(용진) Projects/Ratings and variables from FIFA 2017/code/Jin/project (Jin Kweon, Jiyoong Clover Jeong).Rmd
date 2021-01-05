@@ -1,0 +1,849 @@
+---
+title: "pbhlth project (Jin Kweon, Jiyoon Clover Jeong)"
+author: "Jin Kweon and Jiyoon Clover Jeong"
+date: "10/4/2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(base)
+library(car)
+library(GGally)
+library(ggplot2)
+library(factoextra)
+library(stats)
+library(FactoMineR)
+library(base)
+library(glmnet)
+```
+
+
+
+#Download data
+
+Data: https-//www.kaggle.com/artimous/complete-fifa-2017-player-dataset-global
+
+```{r import}
+soccer <- read.csv("/Users/yjkweon24/Desktop/Cal/2017 Fall/PB HLTH 245/Project/Possible data sets/soccer/FullData.csv", header = T)
+
+head(soccer)
+```
+
+$\\$
+
+$\\$
+
+$\\$
+
+$\\$
+
+$\\$
+
+$\\$
+
+#Dictionary 
+
+For more information, please refer to "https://www.fifaindex.com/."
+```{r}
+name <- c()
+cat <- c()
+description <- c()
+
+
+dic <- data.frame(
+  name <- colnames(soccer), 
+  cat <- c("categorical", "categorical", "categorical", "continuous", "categorical", "categorical",
+           "continuous", "continuous", "continuous", "continuous", "continuous", "continuous",
+           "categorical", "continuous", "continuous", "categorical", "categorical", "categorical",
+           "continuous", "continuous", "continuous", "continuous", "continuous", "continuous",
+           "continuous", "continuous", "continuous", "continuous", "continuous", "continuous",
+           "continuous", "continuous", "continuous", "continuous", "continuous", "continuous",
+           "continuous", "continuous", "continuous", "continuous", "continuous", "continuous",
+           "continuous", "continuous", "continuous", "continuous", "continuous", "continuous",
+           "continuous", "continuous", "continuous", "continuous", "continuous"
+           ),
+  description <- c("player's name", "player's nationality",
+"Empty for retired or not playing this year.
+CAM: center attacking midfielder.
+CB: center back.
+CDM: center defensive midfielder.
+CM: center midfielder.
+GK: goalkeepr.
+LAM: left attacking midfielder. 
+LB: left back.
+LCB: left center back.
+LCM: left center midfielder. 
+LDM: left defensive midfielder.
+LF: left forward. 
+LM: left midfielder.
+LS: left stricker.
+LW: left wing midfielder/forward.
+LWB: left wing back. 
+RAM: right attacking midfielder.
+RB: right back.
+RCB: right center back.
+RCM: right center midfielder.
+RDM: rifght defensive midfielder.
+RF: right forward.
+RM: right midfielder.
+RS: right stricker.
+RW: right wing midfielder/forward. 
+RWB: right wing back.
+ST: stricker.
+Sub: substitution", 
+                   "national kit number", 
+                   "club players belong to",
+                   "club positions (it might be different with national position)",
+                   "club kit number",
+                   "when players join the current club with date, month, and year",
+                   "contract expiration year",
+                   "current rating at Fifa17",
+                   "players' heights in cm",
+                   "players' weights in kg",
+                   "players' preferred foot",
+                   "players' birth date",
+                   "players' ages",
+                   "players' preferred positions (it might be different with their positions)",
+                   "players' general work rate for each game (High, Med, Low)",
+                   "how bad their weak foot is from 1 to 5 (1 is bad)",
+                   "how skillful the players are from 1 to 5",
+                   "how good the players are at controlling ball from 1 to 100",
+                   "how good the players are at dribbling ball from 1 to 100",
+                   "how good the players are at marking/defensing oppononents from 1 to 100",
+                   "how good the players are at sliding tackle opponents from 1 to 100",
+                   "how good the players are at standing tackel opponents from 1 to 100",
+                   "how players defense with auto tackles with good strength from 1 to 100",
+                   "how fast players react with the ball from 1 to 100",
+                   "how players position and move wisely from 1 to 100",
+                   "how players intercept ball from oponents from 1 to 100",
+                   "how wide players' visions are from 1 to 100",
+                   "how stable players are with lots of pressures from 1 to 100",
+                   "how players are good at crossing to their teammates from 1 to 100",
+                   "how players are good at passing to nearby teammates from 1 to 100",
+                   "how players are good at passing to far-away teammates from 1 to 100",
+                   "how good players are at acceleration from 1 to 100",
+                   "how usually fast players are from 1 to 100",
+                   "players' stamina from 1 to 100",
+                   "players' strength when players fight for a ball from 1 to 100",
+                   "how good players balance without falling down or losing the ball from 1 to 100",
+                   "how quick their instant movement is from 1 to 100",
+                   "how good at jumping from 1 to 100",
+                   "how good at heading from 1 to 100",
+                   "how powerful players can shoot from 1 to 100",
+                   "how good at scoring when players shoot from 1 to 100",
+                   "how good at shooting with far distance from 1 to 100",
+                   "how good at curving the ball when shooting from 1 to 100",
+                   "how accurate players can shoot for freekick from 1 to 100",
+                   "how successful players are for penalty shot from 1 to 100",
+                   "how good at volley shot from 1 to 100",
+                   "how good at positioning for GK from 1 to 100",
+                   "how good at diving for GK from 1 to 100",
+                   "how good at kicking/passing for GK from 1 to 100",
+                   "how good at handling the ball for GK from 1 to 100",
+                   "how fast they can react for GK from 1 to 100"
+                   )
+  )
+colnames(dic) <- c("name", "type", "description")
+
+write.csv(dic, file = "/Users/yjkweon24/Desktop/Cal/2017 Fall/PB HLTH 245/Project/dictionary.csv")
+```
+
+$\\$
+
+$\\$
+
+$\\$
+
+$\\$
+
+$\\$
+
+$\\$
+
+#Inspect data1
+```{r}
+NAidx <- c(0)
+Blidx <- c(0)
+
+# frameNA <- data.frame(0)
+# frameBl <- data.frame(0)
+
+# Check NA rows
+for(i in 1:ncol(soccer)){
+  
+  cat("names of NA rows of", colnames(soccer)[i], "\n")
+  
+  #NAdix <- rownames(soccer)[is.na(soccer[,i])]
+  #frameNA[, rownames(soccer)[i]]<- NAdix
+  
+  cat(rownames(soccer)[is.na(soccer[,i])], "\n")
+  cat("Number of NA :  ", length(rownames(soccer)[is.na(soccer[,i])]),"\n")
+  print("======================================")
+  
+  
+  cat("names of rows contain missing values ", colnames(soccer)[i], "\n")
+  #Blidx <- rownames(soccer[which(soccer[,i] == ""),])
+  #frameNA[, rownames(soccer)[i]]<- Blidx
+  cat(rownames(soccer[which(soccer[,i] == ""),]), "\n")
+  cat("Number of Missing values :  ", length(rownames(soccer[which(soccer[,i] == ""),])), "\n")
+  print("======================================")
+}
+```
+
+
+#Inspect data2
+```{r}
+#Show the categories of the position
+levels(soccer$Club_Position)
+
+#Show the counts for each position
+count(soccer, "Club_Position")
+
+#Find the row where no position shown
+which(soccer$Club_Position == "") 
+soccer$Club_Position[which(soccer$Club_Position == "")] <- "ST"
+
+#Find the row where Sub and Res position and their national positions
+subposition <- which(soccer$Club_Position == "Sub") 
+resposition <- which(soccer$Club_Position == "Res")
+
+soccer$National_Position[subposition]
+soccer$National_Position[resposition]
+
+length(subposition)
+length(resposition)
+
+#Bring national positions for those two positions to the club positions (modify data)
+soccer$Club_Position <- as.character(soccer$Club_Position)
+soccer$Club_Position[subposition] <- as.character(soccer$National_Position)[subposition]
+soccer$Club_Position[resposition] <- as.character(soccer$National_Position)[resposition]
+
+#Recheck sub and res position
+length(which(soccer$Club_Position == "Sub")) 
+length(which(soccer$Club_Position == "Res")) 
+
+
+subposition <- which(soccer$Club_Position == "Sub") 
+empty <- which(soccer$Club_Position == "") 
+
+length(subposition)
+length(empty)
+
+soccer_positioncleaned <- soccer[-as.vector(subposition),]
+soccer_positioncleaned <- soccer_positioncleaned[-as.vector(empty),]
+soccer
+nrow(soccer_positioncleaned)
+
+soccer_positioncleaned <- soccer_positioncleaned[!(soccer_positioncleaned$Club_Position==""), ]
+nrow(soccer_positioncleaned)
+levels(as.factor(soccer_positioncleaned$Club_Position))
+
+soccer_positioncleaned$Club_Position[grepl("CAM", soccer_positioncleaned$Club_Position)] <- "Midfielder"
+soccer_positioncleaned$Club_Position[grepl("CDM", soccer_positioncleaned$Club_Position)] <- "Midfielder"
+soccer_positioncleaned$Club_Position[grepl("CM", soccer_positioncleaned$Club_Position)] <- "Midfielder"
+soccer_positioncleaned$Club_Position[grepl("LAM", soccer_positioncleaned$Club_Position)] <- "Midfielder"
+soccer_positioncleaned$Club_Position[grepl("LCM", soccer_positioncleaned$Club_Position)] <- "Midfielder"
+soccer_positioncleaned$Club_Position[grepl("LDM", soccer_positioncleaned$Club_Position)] <- "Midfielder"
+soccer_positioncleaned$Club_Position[grepl("LM", soccer_positioncleaned$Club_Position)] <- "Midfielder"
+soccer_positioncleaned$Club_Position[grepl("RAM", soccer_positioncleaned$Club_Position)] <- "Midfielder"
+soccer_positioncleaned$Club_Position[grepl("RCM", soccer_positioncleaned$Club_Position)] <- "Midfielder"
+soccer_positioncleaned$Club_Position[grepl("RDM", soccer_positioncleaned$Club_Position)] <- "Midfielder"
+soccer_positioncleaned$Club_Position[grepl("RM", soccer_positioncleaned$Club_Position)] <- "Midfielder"
+soccer_positioncleaned$Club_Position[grepl("CB", soccer_positioncleaned$Club_Position)] <- "Defense"
+soccer_positioncleaned$Club_Position[grepl("LB", soccer_positioncleaned$Club_Position)] <- "Defense"
+soccer_positioncleaned$Club_Position[grepl("LCB", soccer_positioncleaned$Club_Position)] <- "Defense"
+soccer_positioncleaned$Club_Position[grepl("LWB", soccer_positioncleaned$Club_Position)] <- "Defense"
+soccer_positioncleaned$Club_Position[grepl("RB", soccer_positioncleaned$Club_Position)] <- "Defense"
+soccer_positioncleaned$Club_Position[grepl("RCB", soccer_positioncleaned$Club_Position)] <- "Defense"
+soccer_positioncleaned$Club_Position[grepl("RWB", soccer_positioncleaned$Club_Position)] <- "Defense"
+soccer_positioncleaned$Club_Position[grepl("GK", soccer_positioncleaned$Club_Position)] <- "Goalkeeper"
+soccer_positioncleaned$Club_Position[grepl("CF", soccer_positioncleaned$Club_Position)] <- "Attacker"
+soccer_positioncleaned$Club_Position[grepl("LF", soccer_positioncleaned$Club_Position)] <- "Attacker"
+soccer_positioncleaned$Club_Position[grepl("LS", soccer_positioncleaned$Club_Position)] <- "Attacker"
+soccer_positioncleaned$Club_Position[grepl("LW", soccer_positioncleaned$Club_Position)] <- "Attacker"
+soccer_positioncleaned$Club_Position[grepl("RF", soccer_positioncleaned$Club_Position)] <- "Attacker"
+soccer_positioncleaned$Club_Position[grepl("RS", soccer_positioncleaned$Club_Position)] <- "Attacker"
+soccer_positioncleaned$Club_Position[grepl("RW", soccer_positioncleaned$Club_Position)] <- "Attacker"
+soccer_positioncleaned$Club_Position[grepl("ST", soccer_positioncleaned$Club_Position)] <- "Attacker"
+
+levels(as.factor(soccer_positioncleaned$Club_Position))
+```
+
+*Comment:*
+
+The one player who currently does not have club position is Didier Drogba. He is not belonged to any club at that moment when the FIFA made ratings. However, since I know him a striker, I will record him as a striker. 
+
+As we found above, there are 30 different positions shown. However, "Sub" and "Res" are not really the position we can deal with. The one way to deal with this problem is to assign the rows of "Sub" and "Res" players (for club position), and try to find the natioanl positions of these players. 
+
+After that, I can combine CB, LB, LCB, LWB, RB, RCB, and RWB into defense position. I can combine CAM, CDM, CM, LAM, LCM, LDM, LM, RAM, RCM, RDM, and RM into midfielder position. I can combine CF, LF, LS, LW, RF, RS, RW, and ST. 
+
+$\\$
+
+$\\$
+
+$\\$
+
+#Multivariate tests
+
+####Test:
+My null hypotheses $H_0$ are: ($\mu$ and $\beta$ are means for each group. For example, $\mu_{11}$ will be the mean of both first level of both factors)
+
+1. $H_0^{int}$: $\mu_{11}\ =\ \mu_{21}\ =\ \mu_{31}\ =\ \mu_{41}\ =\ \mu_{21}\ =\ \mu_{22}\ =\ \mu_{23}\ =\ \mu_{24}\ =\ 0$ (no interaction effect)
+
+2. $H_0^{fac1}$: $\mu_1\ =\ \mu_2\ =\ \mu_3\ = \mu_4\ =\ 0$
+
+3. $H_0^{fac2}$: $\beta_1\ =\ \beta_2\ =\ 0$ (I am following the notations from the textbook)
+
+Test statistics for each $H_0$ are (where $\Lambda^*$ is Wilk's lambda and SSP = Sum of Squares and cross Products):
+
+1. $\Lambda_{int}^*\ =\ \frac{SSP_{res}}{SSP_{int}\ +\ SSP_{res}}$
+
+2. $\Lambda_{fac1}^*\ =\ \frac{SSP_{res}}{SSP_{fac1}\ +\ SSP_{res}}$
+
+3. $\Lambda_{fac2}^*\ =\ \frac{SSP_{res}}{SSP_{fac2}\ +\ SSP_{res}}$
+
+I will do a test for interaction before the tests for main factor effects, because if interaction effects exist, the factor effects do not have a clear interpretation. Thus, we do not need to proceed additional multivariate tests (pg.316)
+
+```{r manova}
+soccer.manova <- manova(cbind(Rating, Age) ~ as.factor(Club_Position) * as.factor(Preffered_Foot),
+                        data = soccer_positioncleaned)
+summary.manova(soccer.manova, test = "Wilks")
+
+summary.aov(soccer.manova, test = "Wilks")
+
+plot1 <- lm(Rating ~ ., data = soccer_positioncleaned[,-c(1,2,3,5,8,11,12,14,16,17)])
+
+crPlot(plot1, variable = "Age")
+
+plot(soccer_positioncleaned$Rating, soccer_positioncleaned$Age)
+```
+
+
+
+
+
+
+
+
+
+
+$\\$
+
+$\\$
+
+$\\$
+
+
+
+
+
+
+
+
+
+# Linear Regression
+
+## (b)
+
+```{r}
+soccer$Height <- as.character(soccer$Height)
+soccer$Height <- as.numeric(substr(soccer$Height, 1,3))
+
+soccer$Weight <- as.character(soccer$Weight)
+soccer$Weight <- as.numeric(substr(soccer$Weight, 1,2))
+
+
+a <- names(soccer)[c(1:8,13,14,16,17) ]
+
+formula <- paste(a, collapse = " - ")
+formula <- paste("Rating ~. -", formula)
+formula <- as.formula(formula)
+lmfit <- lm(formula,  data = soccer)
+
+summary(lmfit)
+```
+
+
+
+## (a)
+
+```{r}
+plot(soccer[,10], soccer[,19])
+
+plot(soccer[,10], soccer[,20])
+
+plot(soccer[,10], soccer[,26], xlab = names(soccer)[10] , ylab = names(soccer)[26])
+
+plot(soccer[,10], soccer[,27], xlab = names(soccer)[10] , ylab = names(soccer)[27])
+
+plot(soccer[,10], soccer[,30], xlab = names(soccer)[10] , ylab = names(soccer)[30])
+```
+
+
+
+## (c)
+
+```{r}
+plot(x = lmfit$fitted.values, y = lmfit$residuals, xlab = "fitted_values", ylab = "residuals")
+
+```
+
+
+
+## (d)
+
+```{r}
+cooks <- data.frame(x = as.numeric(names(cooks.distance(lmfit))), cooks_distance = cooks.distance(lmfit))
+
+
+as.numeric(names(cooks.distance(lmfit)))
+
+ggplot(cooks, aes(x = x, y= cooks_distance, colour="red"))+ geom_point()+ geom_text(aes(label=x),hjust=0, vjust=0)
+
+
+plot(lmfit, which = 4)
+```
+
+
+## (e)
+
+```{r}
+remove1 <- cooks[order(cooks[,2], decreasing = T)[1:3], 1]
+remove1
+
+
+
+influ <- data.frame(x = as.numeric(names(influence(lmfit)$hat)), influence = influence(lmfit)$hat)
+influ
+
+ggplot(influ, aes(x = x, y= influence, colour="red"))+ geom_point()+ geom_text(aes(label=x),hjust=0, vjust=0)
+
+remove2 <- influ[order(influ[,2], decreasing = T)[1:2], 1]
+remove2
+
+
+X_refit <- soccer[-unique(c(remove1, remove2)), ]
+
+refit <- lm(formula,  data = X_refit)
+summary(refit)
+```
+
+
+## lasso
+
+```{r}
+lasso <- glmnet(as.matrix(soccer[-384,-c(1:8,13,14,16,17)]),
+                as.matrix(soccer[-384,10]), alpha = 1)
+
+lassocv <- cv.glmnet(as.matrix(soccer[-384,-c(1:8,13,14,16,17)]), as.matrix(soccer[-384,10]), alpha = 1)
+
+summary(lasso)
+
+
+plot(lasso, label = T)
+
+plot(lassocv)
+
+plot(lasso, xvar = "lambda", label = T)
+
+
+plot(lasso, xvar = "dev", label = T)
+
+
+coef <- coef(lassocv, s = "lambda.min")
+cat("The coefficient that we get from lasso regression is :\n")
+
+
+print(as.numeric(coef))
+```
+
+
+## Compare model 
+
+
+```{r}
+q = dim(soccer)[2] - length(c(1:8,13,14,16,17)) - 8  # number of constraints
+n = nrow(soccer)
+p = dim(soccer)[2] - length(c(1:8,13,14,16,17)) # number of predictors
+
+
+
+RSS_M <- sum((soccer$Rating - lmfit$fitted.values)^2)
+
+fit1 <- lm(Rating ~ Skill_Moves + Ball_Control + Reactions + Attacking_Position + Composure + Short_Pass + Heading + GK_Handling, data = soccer)
+
+summary(fit1)
+
+plot(fit1)
+
+
+RSS_m <- sum((soccer$Rating - fit1$fitted.values)^2)
+Fstat <- ( (RSS_m - RSS_M) / q ) / (RSS_M / (n-p-1))
+cat("F statistics is ", Fstat, "\n")
+
+
+pval <- pf(Fstat, q, n-p-1, lower.tail = F)
+cat("P value is ", pval, "\n")
+```
+
+
+
+
+## lm by club poistion
+
+```{r}
+soccer_positioncleaned$Height <- as.character(soccer_positioncleaned$Height)
+soccer_positioncleaned$Height <- as.numeric(substr(soccer_positioncleaned$Height, 1,3))
+
+soccer_positioncleaned$Weight <- as.character(soccer_positioncleaned$Weight)
+soccer_positioncleaned$Weight <- as.numeric(substr(soccer_positioncleaned$Weight, 1,2))
+
+
+mid <- soccer_positioncleaned[soccer_positioncleaned$Club_Position == "Midfielder", ]
+
+goal <- soccer_positioncleaned[soccer_positioncleaned$Club_Position == "Goalkeeper", ]
+
+attack <- soccer_positioncleaned[soccer_positioncleaned$Club_Position == "Attacker", ]
+
+defense <- soccer_positioncleaned[soccer_positioncleaned$Club_Position == "Defense", ]
+
+
+
+midfit <- lm(Rating~ . ,  data = mid[,-c(1:8,13,14,16,17)])
+goalfit <- lm(Rating~ . ,  data = goal[,-c(1:8,13,14,16,17)])
+attackfit <- lm(Rating~ . ,  data = attack[,-c(1:8,13,14,16,17)])
+defensefit <- lm(Rating~ . ,  data = defense[,-c(1:8,13,14,16,17)])
+
+
+
+summary(midfit)
+summary(goalfit)
+summary(attackfit)
+summary(defensefit)
+```
+
+
+
+
+
+
+
+
+
+
+$\\$
+
+$\\$
+
+$\\$
+
+
+
+
+
+
+
+
+
+#PCA
+```{r}
+pcsoccer <- soccer[,-c(1,2,3,4,5,6,7,8,9,11,12,13,14,16,17)]
+
+scalepc <- scale(pcsoccer, T, T)
+row.names(pcsoccer) <- make.names(soccer[,1], unique = T)
+rownames(scalepc) <- make.names(soccer[,1], unique = T)
+corpc <- cor(scalepc)
+
+loadingpc <- eigen(corpc)$vectors
+rownames(loadingpc) <- colnames(scalepc)
+loadingpc
+
+eigenpc <- eigen(corpc)$values
+eigenpc
+sum(eigenpc)
+
+pcsoccer <- scalepc %*% loadingpc
+colnames(pcsoccer) <- paste0("PC", 1:38)
+head(pcsoccer[,1:2])
+
+
+eigen_data <- matrix(0, nrow = round(sum(eigenpc),0), ncol = 3)
+colnames(eigen_data) <- c("eigenvalue", "percentage", "cumulative.percentage")
+rownames(eigen_data) <- paste0("comp", 1:sum(eigenpc))
+eigen_data[,1] <- eigenpc
+percentage <- apply(as.matrix(eigenpc), 2, sum(eigenpc), FUN = "/") * 100
+eigen_data[,2] <- percentage
+cum_fun <- function(x){ #x should be n * 1 column matrix
+for (i in 2:nrow(x)){
+x[i,] <- x[i-1,] + x[i,]
+}
+return(x)
+}
+cumulative <- cum_fun(percentage) #or use cumsum!!!
+eigen_data[,3] <- cumulative
+print(eigen_data)
+
+
+graph <- ggplot(as.data.frame(eigen_data[,1]), aes(x = 1:38, y = as.numeric(eigen_data[,1])))
+graph <- graph + geom_bar(stat = "identity", alpha = 0.3, color = "red") + geom_point() +
+geom_line() +
+labs(title = "Screeplot of eigenvalues", x = "number of components", y = "values") +
+scale_x_continuous(breaks=seq(1,12,1))
+graph
+
+ggplot(as.data.frame(pcsoccer[,1:2]), aes(x = PC1, y = PC2)) + geom_point() +
+  geom_text(aes(label = rownames(pcsoccer), hjust = -0.4), size = 3)
+
+plot(PCA(pcsoccer))
+
+```
+
+#PCA2 with small sample
+
+```{r}
+pcsoccer2 <- soccer_positioncleaned[,-c(1,2,3,4,5,6,7,8,9,11,12,13,14,16,17)]
+
+scalepc2 <- scale(pcsoccer2, T, T)
+rownames(pcsoccer2) <- make.names(soccer_positioncleaned[,1], unique = T)
+rownames(scalepc2) <- make.names(soccer_positioncleaned[,1], unique = T)
+corpc2 <- cor(scalepc2)
+
+loadingpc2 <- eigen(corpc2)$vectors
+rownames(loadingpc2) <- colnames(scalepc2)
+loadingpc2
+
+eigenpc2 <- eigen(corpc2)$values
+eigenpc2
+sum(eigenpc2)
+
+pcsoccer2 <- scalepc2 %*% loadingpc2
+colnames(pcsoccer2) <- paste0("PC", 1:38)
+head(pcsoccer2[,1:2])
+
+eigen_data2 <- matrix(0, nrow = round(sum(eigenpc2),0), ncol = 3)
+colnames(eigen_data2) <- c("eigenvalue", "percentage", "cumulative.percentage")
+rownames(eigen_data2) <- paste0("comp", 1:sum(eigenpc2))
+eigen_data2[,1] <- eigenpc2
+percentage2 <- apply(as.matrix(eigenpc2), 2, sum(eigenpc2), FUN = "/") * 100
+eigen_data2[,2] <- percentage2
+cum_fun <- function(x){ #x should be n * 1 column matrix
+  for (i in 2:nrow(x)){
+    x[i,] <- x[i-1,] + x[i,]
+  }
+  return(x)
+}
+cumulative2 <- cum_fun(percentage) #or use cumsum!!!
+eigen_data2[,3] <- cumulative2
+print(eigen_data2)
+
+
+graph <- ggplot(as.data.frame(eigen_data2[,1]), aes(x = 1:38, y = as.numeric(eigen_data2[,1])))
+graph <- graph + geom_bar(stat = "identity", alpha = 0.3, color = "red") + geom_point() + 
+  geom_line() +
+  labs(title = "Screeplot of eigenvalues", x = "number of components", y = "values") +
+  scale_x_continuous(breaks=seq(1,12,1))
+graph
+
+#When I knit the files, since there are two many datas, conversion error comes up.... but when I run the file here, it works...
+
+# ggplot(as.data.frame(pcsoccer2[,1:2]), aes(x = PC1, y = PC2)) + geom_point() +
+#   geom_text(aes(label = rownames(pcsoccer2), hjust = -0.4), size = 3)
+# 
+# ggplot(as.data.frame(cbind(PC1 = pcsoccer2[,1], PC3 = pcsoccer2[,3])), aes(x = PC1, y = PC3)) +
+#   geom_point() + geom_text(aes(label = rownames(pcsoccer2), hjust = -0.4), size = 3)
+# 
+# ggplot(as.data.frame(cbind(PC2 = pcsoccer2[,2], PC3 = pcsoccer2[,3])), aes(x = PC2, y = PC3)) +
+#   geom_point() + geom_text(aes(label = rownames(pcsoccer2), hjust = -0.4), size = 3)
+
+#plot(PCA(pcsoccer))
+```
+
+#PCA ranking
+```{r}
+pcsoccerrank <- data.frame(PC1 = pcsoccer2[,1])
+pcsoccerrank$Rank <- rank(pcsoccerrank$PC1)
+order <- pcsoccerrank[order(pcsoccerrank$Rank), ]
+order$name <- rownames(order)
+order$name <- factor(order$name, levels = order$name[order(order$PC1)])
+#order
+head(order, 20)
+tail(order, 20)
+
+# ggplot(order, aes(x = name, y = PC1)) + geom_bar(stat = "identity") +
+#   theme(text = element_text(size=4), axis.text.x = element_text(angle = 40, hjust = 1)) +
+#   ggtitle("PC1")
+
+
+################################################
+
+pcsoccerrank2 <- data.frame(PC2 = pcsoccer2[,2])
+pcsoccerrank2$Rank <- rank(pcsoccerrank2$PC2)
+order <- pcsoccerrank2[order(pcsoccerrank2$Rank), ]
+order$name <- rownames(order)
+order$name <- factor(order$name, levels = order$name[order(order$PC2)])
+#order
+head(order, 20)
+tail(order, 20)
+
+# ggplot(order, aes(x = name, y = PC2)) + geom_bar(stat = "identity") +
+#   theme(text = element_text(size=4), axis.text.x = element_text(angle = 40, hjust = 1)) +
+#   ggtitle("PC2")
+
+
+################################################
+
+pcsoccerrank3 <- data.frame(PC3 = pcsoccer2[,3])
+pcsoccerrank3$Rank <- rank(pcsoccerrank3$PC3)
+order <- pcsoccerrank3[order(pcsoccerrank3$Rank), ]
+order$name <- rownames(order)
+order$name <- factor(order$name, levels = order$name[order(order$PC3)])
+#order
+head(order, 20)
+tail(order, 20)
+
+# ggplot(order, aes(x = name, y = PC3)) + geom_bar(stat = "identity") +
+#   theme(text = element_text(size=4), axis.text.x = element_text(angle = 40, hjust = 1)) +
+#   ggtitle("PC3")
+
+
+################################################
+
+pcsoccerrank4 <- data.frame(PC4 = pcsoccer2[,4])
+pcsoccerrank4$Rank <- rank(pcsoccerrank4$PC4)
+order <- pcsoccerrank4[order(pcsoccerrank4$Rank), ]
+order$name <- rownames(order)
+order$name <- factor(order$name, levels = order$name[order(order$PC4)])
+#order
+head(order, 20)
+tail(order, 20)
+
+# ggplot(order, aes(x = name, y = PC4)) + geom_bar(stat = "identity") +
+#   theme(text = element_text(size=4), axis.text.x = element_text(angle = 40, hjust = 1)) +
+#   ggtitle("PC4")
+
+
+################################################
+
+pcsoccerrank5 <- data.frame(PC5 = pcsoccer2[,5])
+pcsoccerrank5$Rank <- rank(pcsoccerrank5$PC5)
+order <- pcsoccerrank5[order(pcsoccerrank5$Rank), ]
+order$name <- rownames(order)
+order$name <- factor(order$name, levels = order$name[order(order$PC5)])
+#order
+head(order, 20)
+tail(order, 20)
+
+# ggplot(order, aes(x = name, y = PC5)) + geom_bar(stat = "identity") +
+#   theme(text = element_text(size=4), axis.text.x = element_text(angle = 40, hjust = 1)) +
+#   ggtitle("PC5")
+```
+
+
+#PCA correlation circle
+```{r}
+pcsoccer2 <- soccer_positioncleaned[,-c(1,2,3,4,5,6,7,8,9,11,12,13,14,16,17)]
+newpc <- prcomp(pcsoccer2, scale = T)
+var <- get_pca_var(newpc)
+
+correlation <- function(loadings, sdev){
+  return(loadings * sdev)
+  }
+
+loadings <- newpc$rotation
+sdev <- newpc$sdev
+
+var.cor <- t(apply(loadings, 1, correlation, sdev))
+
+################################################
+
+# Plot the correlation circle
+a <- seq(0, 2*pi, length = 100)
+plot(2*cos(a), 2*sin(a), type = 'l', col="gray",
+      xlab = "PC1",  ylab = "PC2")
+
+abline(h = 0, v = 0, lty = 2)
+
+# Add active variables
+arrows(0, 0, var.cor[, 1], var.cor[, 2], 
+      length = 0.1, angle = 15, code = 2)
+text(var.cor[,c(1,2)], labels=rownames(var.cor), cex = 0.4, adj=0.6, pos = 3)
+
+
+################################################
+
+# Plot the correlation circle
+a <- seq(0, 2*pi, length = 100)
+plot(2*cos(a), 2*sin(a), type = 'l', col="gray",
+      xlab = "PC1",  ylab = "PC3")
+
+abline(h = 0, v = 0, lty = 2)
+
+# Add active variables
+arrows(0, 0, var.cor[, 1], var.cor[, 3], 
+      length = 0.1, angle = 15, code = 2)
+text(var.cor[,c(1,3)], labels=rownames(var.cor), cex = 0.4, adj=0.5, pos = 2)
+
+
+################################################
+
+# Plot the correlation circle
+a <- seq(0, 2*pi, length = 100)
+plot(2*cos(a), 2*sin(a), type = 'l', col="gray",
+      xlab = "PC2",  ylab = "PC3")
+
+abline(h = 0, v = 0, lty = 2)
+
+# Add active variables
+arrows(0, 0, var.cor[, 2], var.cor[, 3], 
+      length = 0.05, angle = 15, code = 2)
+text(var.cor[,c(2,3)], labels=rownames(var.cor), cex = 0.4, adj=1, pos = 3)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

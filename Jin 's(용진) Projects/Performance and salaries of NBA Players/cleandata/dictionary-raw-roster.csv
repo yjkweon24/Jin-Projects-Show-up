@@ -1,0 +1,15 @@
+"","name","description","explanation"
+"1","roster.No.","roster number of each player in this team","the number where this player is at in the original
+                  roster table"
+"2","roster.Player","name","the name of each player in this team"
+"3","roster.Pos","position","the specific position for each player in this team, 
+                  there are five types of positions, which are C, PF, SF,
+                  SG, and PG"
+"4","roster.Ht","height","the height of each player in the team in ft"
+"5","roster.Wt","the weight of each player in this team","the weight of each player in the team in pounds"
+"6","roster.Birth.Date","birth date","the birth date of each player in the team"
+"7","roster.Country","country","the country that each player comes from in this team"
+"8","roster.Exp","years of experience","the experience of playing basketball games for each player
+                  in this team, unit is year"
+"9","roster.College","college name","the name of college that each player in this team was
+                  graduated from"

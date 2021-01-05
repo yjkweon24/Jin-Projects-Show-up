@@ -1,0 +1,37 @@
+"","name","description","explanation"
+"1","totals.Rk","ranking","the ranking of the player in this team"
+"2","totals.Player","name","the name of the player in this team"
+"3","totals.Age","age","the age of the player in this team"
+"4","totals.G","games","total number of games played by this player"
+"5","totals.GS","games started","total number of games started of this player"
+"6","totals.MP","minutes played","the total minutes played by this player"
+"7","totals.FG","field goals","total number of field goals of this player"
+"8","totals.FGA","field goals attempted","total number of field goals attempted of this player"
+"9","totals.3P","three-point field goals","total number of three-point field goal of this player"
+"10","totals.3PA","three-point field goal attempted","total number of three-point field goal attempt of
+                  this player"
+"11","totals.3P.","three-point field goals percentage","three-point field goals percentage of this player,
+                  calculated from dividing three-point field goals by 
+                  three-point field goals attempted"
+"12","totals.2P","two-point field goals","total number of two-point field goal of this player"
+"13","totals.2PA","two-point field goals attempted","total number of two-point field goal attempted
+                  of this player"
+"14","totals.2P.","two-point field goal percentage","two-point field goal percentage,
+                  calculated from dividing two-point field goals by
+                  two-point field goals attempted"
+"15","totals.eFG.","effective field goals percentage","effective field goals percentage of this player,
+                  formula is (FG + 0.5 * 3P) / FGA"
+"16","totals.FT","free throws","total number of free throws by this player"
+"17","totals.FTA","free throws attempted","total number of free throw attempted by this player"
+"18","totals.FT.","free throws percentage","free throw percentage of this player, calculated from 
+                  dividing number of free throws by number of free throws
+                  attempted"
+"19","totals.ORB","offensive rebound","total number of offensive rebound of this player"
+"20","totals.DRB","defensive rebound","totalnumber of defensive rebound of this player"
+"21","totals.TRB","total rebound","total number of total rebound of this player"
+"22","totals.AST","assists","total number of assists to turnover of this player"
+"23","totals.STL","steals","total number of steals made by this player"
+"24","totals.BLK","blocks","total number of blocks made by this player"
+"25","totals.TOV","turnovers","total number of turnovers made by this player"
+"26","totals.PF","personal fouls","total number of personal fouls of this player"
+"27","totals.PTS","points","total number of points that this player got"

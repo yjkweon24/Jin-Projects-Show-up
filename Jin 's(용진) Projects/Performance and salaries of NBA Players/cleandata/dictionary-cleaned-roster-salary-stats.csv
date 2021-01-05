@@ -1,0 +1,11 @@
+"","name","description","explanation"
+"1","Field Goal Percentage","the percentage of field goal","Field goal divided by Field Goal Attempt"
+"2","Three Point Field Goal Percentage","the percentage of three point field goal","Three Point Goal divided by Three Point Goal Attempt"
+"3","Two Point Field Goal Percentage","the percentage of two point field goal","Two Point Field Goal divided by
+                  Two Point Field Goal Attempt"
+"4","Effective Field Goal Percentage","adjusts field goal percentage to 
+                  account for the fact that three-point field goals
+                  count for three points while field goals only
+                  count for two points","Field goal + 0.5 times Three Point Field
+                  Goals and then divided by Field Goal Attempt"
+"5","Free Throws Percentage","the percentage of free throws","Free Throws divided by Free Throws Attempt"

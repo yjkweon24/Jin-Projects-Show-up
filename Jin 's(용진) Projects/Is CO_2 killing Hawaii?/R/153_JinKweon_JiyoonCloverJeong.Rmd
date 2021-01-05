@@ -1,0 +1,604 @@
+---
+title: "153project"
+author: "Jiyoon Clover Jeong and Jin Kweon"
+date: "3/24/2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(ggfortify)
+library(stats)
+library(TSA)
+library(forecast)
+library(tsoutliers)
+library(astsa)
+library(tseries)
+library(dynlm)
+library(stats)
+library(randtests) #turning.point.test
+library(reshape2)
+library(gridExtra)
+options(scipen=10000) #No scientific notation
+```
+
+#EDA
+```{r EDA}
+hawaii <- read.csv("../data/Carbon_Hawaii.csv")
+dim(hawaii)
+hawaii.ts <- ts(hawaii$Carbondioxide, frequency=12, start=c(1959, 1), end=c(1990, 12))
+anyNA(hawaii.ts)
+
+plot(hawaii)
+plot(hawaii.ts)
+
+head(hawaii)
+
+# Time series plot
+autoplot(hawaii.ts, main = "Hawaii CO2", xlab = "Time", ylab = "Number")
+
+plot.ts(hawaii.ts, main = "Hawaii CO2", xlab = "Time", ylab = "Number")
+abline(reg=lm(hawaii.ts~time(hawaii.ts)), col = "red")
+
+
+# Identifying outliers
+Out <- boxplot(hawaii.ts)$out
+length(which(hawaii.ts %in% Out))
+
+den <- density(hawaii.ts, adjust = 1)
+plot(den, main = "density plot for Hawaii CO2")
+polygon(den, col = "red", border = "blue")
+
+outs <- tso(hawaii.ts, types = c("TC", "AO", "LS", "IO", "SLS"))
+tsoutliers(hawaii.ts)
+plot(outs)
+
+# Another inspection
+time(hawaii.ts)
+cycle(hawaii.ts)
+
+summary(hawaii.ts)
+str(hawaii.ts)
+dim(hawaii.ts)
+sd(hawaii.ts)
+```
+
+#Analysis
+```{r analysis}
+#Initial check
+adf.test(hawaii.ts)
+#kpss.test(hawaii.ts)
+
+
+
+
+
+
+#Trend OR Seasonality
+decomp <- decompose(hawaii.ts, type=c("additive")) # use type = "additive" for additive components by MA
+plot(decomp) 
+decomp2 <- decompose(hawaii.ts, type=c("multiplicative")) # use type = "additive" for additive components by MA
+plot(decomp2) 
+
+lowesdecomp <- stl(hawaii.ts, s.window = "periodic") #seasonal decomposition by lowess
+lowesdecomp
+
+plot(seasadj(lowesdecomp))
+plot(seasadj(decomp2))
+plot(seasadj(decomp))
+
+seasonplot(seasadj(lowesdecomp), col = rainbow(10), main = "seasonal plot")
+seasonplot(hawaii.ts, col = rainbow(10), main = "seasonal plot for original data")
+
+
+ndiffs(hawaii.ts) #check how many differencing is needed 
+ndiffs(seasadj(decomp2))
+ndiffs(seasadj(lowesdecomp))
+
+plot(diff(hawaii.ts, 12, 1), type = "o")
+mean(diff(hawaii.ts, 12, 1))
+adf.test(diff(hawaii.ts, 12, 1))
+
+adf <- 0 #Initializing vector for adf data 
+for(i in 1:11){
+  adf[i] <- adf.test(diff(diff(hawaii.ts, 12, i)))$statistic
+}
+
+which.min(adf) #check which model is the most significant/most stationary
+
+plot(diff(diff(hawaii.ts, 12, 1)), type = "o")
+mean(diff(diff(hawaii.ts, 12, 1)))
+
+
+
+
+
+
+
+#It is a new dataset after 1st and seasonal differencings
+newdata <- diff(diff(hawaii.ts, 12, 1))
+
+
+#Moving average smoothings/filtering
+mv <- stats::filter(newdata, sides = 2, filter = c(0.5, rep(1, 11), 0.5)/12)
+plot(newdata, main = "Detrending")
+lines(mv, col = 2)
+
+#Kernel smooth
+plot(newdata)
+lines(ksmooth(time(newdata), newdata, kernel = "normal", bandwidth = 1), col = 3)
+
+#Lowess 
+plot(newdata)
+lines(lowess(newdata), col = 4)
+
+#smooth splines
+lines(smooth.spline(time(newdata), newdata, spar = 0.5), col = 5)
+
+
+
+
+
+
+
+#Scatterplot matrix and acf and pacf for sanity check
+lag1.plot(hawaii.ts, max.lag = 12)
+acf(hawaii.ts)
+pacf(hawaii.ts)
+
+lag1.plot(newdata, max.lag = 12)
+```
+
+#(S)Arima
+```{r arima}
+#Split the train and testing
+test <- tail(hawaii.ts, 12)
+train <- head(hawaii.ts, -12)
+
+length(test)
+length(train)
+length(hawaii.ts)
+
+newtrain <- diff(diff(train, 12, 1))
+  
+
+
+
+
+#ACF, PACF, EACF
+acf2(newtrain, main = "ACF and PACF for transformed Hawaii CO2")
+eacf(newtrain)
+
+
+
+
+
+
+#Sarima - model comparison (out = not appropriate, good = appropriate)
+
+sarima(train, 2, 1, 2, 0, 1, 1, 12) #out
+sarima(train, 2, 1, 1, 0, 1, 1, 12) #good 
+sarima(train, 1, 1, 2, 0, 1, 1, 12) #out
+
+
+sarima(train, 0, 1, 2, 0, 1, 1, 12) #out
+sarima(train, 1, 1, 1, 0, 1, 1, 12) #good 
+sarima(train, 0, 1, 1, 0, 1, 1, 12) #good
+
+sarima(train, 1, 1, 0, 0, 1, 1, 12) #out
+sarima(train, 0, 1, 0, 0, 1, 1, 12) #out
+
+
+
+
+sarima(train, 2, 1, 2, 1, 1, 1, 12) #out
+sarima(train, 2, 1, 1, 1, 1, 1, 12) #out
+sarima(train, 1, 1, 2, 1, 1, 1, 12) #out
+
+
+sarima(train, 0, 1, 2, 1, 1, 1, 12) #out
+sarima(train, 1, 1, 1, 1, 1, 1, 12) #out
+sarima(train, 0, 1, 1, 1, 1, 1, 12) #out
+
+sarima(train, 1, 1, 0, 1, 1, 1, 12) #out
+sarima(train, 0, 1, 0, 1, 1, 1, 12) #out
+
+#turning.point.test(train)
+#shapiro.test()
+#qqnorm()
+
+
+
+
+
+
+#Model parameter estimation
+model1 <- sarima(train, 2, 1, 1, 0, 1, 1, 12)
+model2 <- sarima(train, 1, 1, 1, 0, 1, 1, 12) 
+model3 <- sarima(train, 0, 1, 1, 0, 1, 1, 12) 
+
+model1$ttable[,1]
+model2$ttable[,1]
+model3$ttable[,1]
+
+
+
+
+#Forecasting
+model1_for <- sarima.for(train, 12, 2, 1, 1, 0, 1, 1, 12)
+lines(test, type = "o", col = "blue") #real 
+title(main = "model 1 forecasting (red = predict, blue = real)")
+
+model2_for <- sarima.for(train, 12, 1, 1, 1, 0, 1, 1, 12)
+lines(test, type = "o", col = "blue") #real 
+title("model 2 forecasting (red = predict, blue = real)")
+
+model3_for <- sarima.for(train, 12, 0, 1, 1, 0, 1, 1, 12)
+lines(test, type = "o", col = "blue") #real 
+title("model 3 forecasting (red = predict, blue = real)")
+
+
+
+model_for <- sarima.for(hawaii.ts, 24, 0, 1, 1, 0, 1, 1, 12)
+lines(test, type = "o", col = "blue") 
+title("Future 2-year forecasting")
+
+
+
+#Prediction and Standard Error table
+predict_data <- data.frame(model1_prediction = model1_for$pred,
+                     model1_sd = model1_for$se,
+                     model2_prediction = model2_for$pred,
+                     model2_sd = model2_for$se,
+                     model3_prediction = model3_for$pred,
+                     model3_sd = model1_for$se)
+predict_data <- round(predict_data, 3)
+predict_data
+
+
+
+
+
+#MSE and Mean MSE table
+mse_data <- matrix(0, 12, 3)
+
+for(j in 1:3){
+  for(i in 1:12){
+    mse_data[i, j] <- (test[i] - predict_data[i, 2*j - 1])^2
+  }
+}
+mse_data <- rbind(mse_data, colMeans(mse_data))
+colnames(mse_data) <- c("Model1", "Model2", "Model3")
+name <- 0
+for(i in 1:nrow(mse_data) - 1){
+  name[i] <- paste0("MSE: 1990, ", i)
+}
+name <- c(name, "Mean MSE")
+rownames(mse_data) <- name
+
+mse_data
+```
+
+#Spectral Analysis
+```{r}
+#Good reference: http://www.stat.pitt.edu/stoffer/tsa4/R_toot.htm
+head(newdata,20)
+```
+
+
+#Various Detrending Method
+
+## detrended by differencing
+```{r}
+plot(newdata)   
+
+
+#pick the key frequencies
+final <- spec.pgram(newdata, kernel("modified.daniell", c(3, 3)),
+                    taper=0.1, plot = F)
+
+keyidx <- c(1, which(diff(sign(diff(final$spec)))==-2) + 1)
+keyfreq <- final$freq[keyidx]
+abline(v=keyfreq, lty=2)
+
+
+topfreq <- keyfreq[order(final$spec[keyidx], decreasing = T)][1:3]/12
+time <- 1: length(hawaii$Carbondioxide)
+
+terms <- do.call(cbind, lapply(topfreq, function(freq) {
+  cbind(cos(2 * pi * freq * time), sin(2 * pi * freq * time))
+}))
+
+
+
+combined <- data.frame(hawaii = hawaii$Carbondioxide, time, terms)
+fit <- lm(hawaii ~ ., combined)
+summary(fit)
+plot(time, hawaii$Carbondioxide, type="l")
+lines(time, fit$fitted.values, lty=2, col="red")
+
+plot(1:50, hawaii$Carbondioxide[1:50], type="l")
+lines(1:50, fit$fitted.values[1:50], lty=2, col="red")
+
+
+```
+
+##Detrended by lm
+```{r}
+
+t <- 1:length(hawaii.ts)
+fit <- lm(hawaii.ts ~ t)
+hawaii_detrended <- fit$residuals
+plot.ts(hawaii_detrended)
+
+fit <- lm(hawaii.ts ~ t + I(t^2))
+hawaii_detrended <- fit$residuals
+plot.ts(hawaii_detrended)
+
+
+```
+
+##Detrended by stl
+```{r}
+
+trend = stl(hawaii.ts, s.window = "periodic")$time.series[,2]
+
+detrended_stl <- hawaii.ts - (trend - trend[1])
+
+#length(detrended_stl)-12
+
+newdata = detrended_stl[1 : 372]
+
+plot(detrended_stl)
+
+
+```
+
+
+```{r}
+# Effect of different span on Kernel
+
+
+k0.smooth <- spec.pgram(newdata, log='no', taper=0, pad=0, fast=FALSE, demean=TRUE, detrend=FALSE, plot = F) 
+
+autoplot(k0.smooth, log = 'no', main = "Raw periodogram")
+
+
+k1 <- kernel("daniell", c(1, 1))
+k1.smooth <- spec.pgram(newdata, kernel = k1, log = 'no', taper = 0, plot = FALSE)
+smooth.df <- data.frame(freq = k1.smooth$freq, `c(1,1)` = k1.smooth$spec)
+names(smooth.df) <- c("frequency", "c(1,1)")
+# Add other smooths
+k2 <- kernel("daniell", c(3, 3))
+smooth.df[, "c(3,3)"] <- spec.pgram(newdata, kernel = k2, log = 'no', taper = 0, plot = FALSE)$spec
+k3 <- kernel("daniell", c(5, 5))
+smooth.df[, "c(5,5)"] <- spec.pgram(newdata, kernel = k3, log = 'no', taper = 0, plot = FALSE)$spec
+
+k4 <- kernel("daniell", c(7, 7))
+smooth.df[, "c(7,7)"] <- spec.pgram(newdata, kernel = k4, log = 'no', taper = 0, plot = FALSE)$spec
+
+# Melt dataframe in order to plot three graph together
+
+smooth.df1 <- melt(smooth.df, variable.name = "dimension", 
+                  id.vars = "frequency", value.name = "spectrum")
+plot1 <- ggplot(data = subset(smooth.df1)) + geom_path(aes(x = frequency, y = spectrum, color = dimension)) +  scale_x_continuous("frequency")
+
+
+plot2 <- ggplot(data = subset(smooth.df1)) + 
+  geom_path(aes(x = frequency, y = spectrum, color = dimension)) + 
+  scale_x_continuous("frequency") +  scale_y_log10() + 
+  labs(title = "log spacing on spectrum")
+
+grid.arrange(plot1, plot2)
+
+
+```
+
+
+***k1 looks smooth enough and has reasonable number of peaks
+
+```{r}
+# Effect of different span(dimention) on Kernel
+
+k1 <- kernel("daniell", c(3, 3, 3))
+k1.smooth <- spec.pgram(newdata, kernel = k1, log = 'no', taper = 0, plot = FALSE)
+smooth.df <- data.frame(freq = k1.smooth$freq, `c(3,3,3)` = k1.smooth$spec)
+names(smooth.df) <- c("frequency", "c(3,3,3)")
+# Add other smooths
+k2 <- kernel("daniell", c(3,3))
+smooth.df[, "c(3,3)"] <- spec.pgram(newdata, kernel = k2, log = 'no', taper = 0, plot = FALSE)$spec
+k3 <- kernel("daniell", c(3))
+smooth.df[, "c(3)"] <- spec.pgram(newdata, kernel = k3, log = 'no', taper = 0, plot = FALSE)$spec
+
+
+
+# Melt dataframe in order to plot three graph together
+
+smooth.df <- melt(smooth.df, variable.name = "dimension", 
+                  id.vars = "frequency", value.name = "spectrum")
+plot1 <- ggplot(data = subset(smooth.df)) + geom_path(aes(x = frequency, y = spectrum, color = dimension)) +  scale_x_continuous("frequency") 
+plot2 <- ggplot(data = subset(smooth.df)) + 
+  geom_path(aes(x = frequency, y = spectrum, color = dimension)) + 
+  scale_x_continuous("frequency") +  scale_y_log10() + 
+  labs(title = "log spacing on spectrum")
+
+grid.arrange(plot1, plot2)
+
+```
+
+```{r, warning=FALSE}
+#Effect of different kernel
+
+k1 <- kernel("daniell", 3, 1)
+k1.smooth <- spec.pgram(newdata, kernel = k1, log = 'no', taper = 0, plot = FALSE)
+smooth.df <- data.frame(freq = k1.smooth$freq, `daniell` = k1.smooth$spec)
+names(smooth.df) <- c("frequency", "daniell")
+# Add other smooths kernel
+k2 <- kernel("dirichlet", 3, 1)  
+smooth.df[, "dirichlet"] <- spec.pgram(newdata, kernel = k2, log = 'no', taper = 0, plot = FALSE)$spec
+k3 <- kernel("fejer", 3, 1)
+smooth.df[, "fejer"] <- spec.pgram(newdata, kernel = k3, log = 'no', taper = 0, plot = FALSE)$spec
+k4 <- kernel("modified.daniell", 3, 1)
+smooth.df[, "modi.daniell"] <- spec.pgram(newdata, kernel = k4, log = 'no', taper = 0, plot = FALSE)$spec
+
+
+# Melt dataframe in order to plot three graph together
+smooth.df <- melt(smooth.df, variable.name = "kernel", 
+                  id.vars = "frequency", value.name = "spectrum")
+
+which(is.nan(smooth.df[,3]))
+
+
+plot1 <- ggplot(data = subset(smooth.df)) + geom_path(aes(x = frequency, y = spectrum, color = kernel)) +  scale_x_continuous("frequency") 
+
+plot2 <- ggplot(data = subset(smooth.df)) + 
+  geom_path(aes(x = frequency, y = spectrum, color = kernel)) + 
+  scale_x_continuous("frequency") +  scale_y_log10() + 
+  labs(title = "log spacing on spectrum")
+
+grid.arrange(plot1, plot2)
+
+
+```
+
+```{r}
+
+# Effect of different tapering - less important the longer your time series is, but it can be very important in short series
+
+
+k1 <- kernel("modified.daniell", c(3,3) , 2)
+
+k1.smooth <- spec.pgram(newdata, kernel = k1, taper = 0, log = 'no', plot = FALSE)
+smooth.df <- data.frame(freq = k1.smooth$freq, `0%` = k1.smooth$spec)
+names(smooth.df) <- c("frequency", "0%")
+# Add other tapers
+smooth.df[, "10%"] <- spec.pgram(newdata, kernel = k1, taper = 0.1, log = 'no', plot = FALSE)$spec
+smooth.df[, "30%"] <- spec.pgram(newdata, kernel = k1, taper = 0.3, log = 'no',  plot = FALSE)$spec
+
+smooth.df <- melt(smooth.df, variable.name = "taper", 
+                  id.vars = "frequency", value.name = "spectrum")
+plot1 <- ggplot(data = subset(smooth.df)) + geom_path(aes(x = frequency, y = spectrum, color = taper)) + scale_x_continuous("frequency") 
+# +  scale_y_log10()
+
+plot2 <- ggplot(data = subset(smooth.df)) + geom_path(aes(x = frequency, y = spectrum, color = taper)) + scale_x_continuous("frequency") + scale_y_log10() + labs(title = "log spacing on spectrum")
+
+grid.arrange(plot1, plot2)
+
+
+```
+
+## Pick the key frequencies and compare the generated features with the original dataset
+```{r}
+
+#pick the key frequencies
+final <- spec.pgram(newdata, kernel("modified.daniell", c(3, 3)), taper = 0.1)
+keyidx <- c(1, which(diff(sign(diff(final$spec)))==-2) + 1)
+keyfreq <- final$freq[keyidx]
+abline(v=keyfreq, lty=2)
+
+# compare with the parametric spectral estimator 
+plot(final)
+AR <- spec.ar(newdata, plot=F)
+lines(AR$freq, AR$spec, lty=2, col="red")
+
+# pick top three frequencies and use these to generate features in terms of sin and cos functions. 
+
+
+topfreq <- keyfreq[order(final$spec[keyidx], decreasing = T)][1:2]
+
+cat("Top frequencies are :", topfreq[1], " and ", topfreq[2])
+
+time <- 1: length(newdata)
+
+terms <- do.call(cbind, lapply(topfreq, function(freq) {
+  cbind(cos(2 * pi * freq * time), sin(2 * pi * freq * time))
+}))
+
+
+
+combined <- data.frame(hawaii = hawaii$Carbondioxide[1:length(time)], time, terms)
+fit <- lm(hawaii ~ ., combined)
+summary(fit)
+plot(time, hawaii$Carbondioxide[1:length(time)], type="l")
+lines(time, fit$fitted.values, lty=2, col="red")
+
+plot(1:50, hawaii$Carbondioxide[1:50], type="l")
+lines(1:50, fit$fitted.values[1:50], lty=2, col="red")
+
+
+```
+
+## Forecast 12 observations
+```{r}
+
+time_new <- (length(time) + 1):(length(time) + 12)
+
+terms_new <- do.call(cbind, lapply(topfreq, function(freq) {
+  cbind(cos(2 * pi * freq * time_new), sin(2 * pi * freq * time_new))
+}))
+
+combined_new <- data.frame(time_new, terms_new)
+colnames(combined_new) <- colnames(combined)[-1]
+predictions <- predict.lm(fit, newdata=combined_new,interval="prediction", level=.95)
+
+
+plot(time, hawaii$Carbondioxide[1:length(time)], type="l", xlim=c(0, 390), ylim=c(310, 360))
+lines(time, fit$fitted.values, lty=2, col="red")
+lines(time_new, predictions[, "fit"], col="blue")
+matlines(time_new, predictions[, 2:3], col = "purple", lty=3)
+
+
+#Forecasted data Enlarged
+plot(350:372, hawaii$Carbondioxide[350:length(time)], type="l", xlim=c(350, 386), ylim=c(342, 358))
+lines(350:372, fit$fitted.values[350:372], lty=2, col="red")
+lines(time_new, predictions[, "fit"], col="blue")
+matlines(time_new, predictions[, 2:3], col = "purple", lty=3)
+
+```
+
+## Calculating MSE from spectral model
+```{r}
+
+MSE_spectral <- mean((hawaii$Carbondioxide[373:384] - predictions[, "fit"])^2)
+
+MSE_spectral
+
+```
+
+## Predicting future 24 time points from the final spectral model
+```{r}
+
+time <- 1: length(hawaii$Carbondioxide)
+
+terms <- do.call(cbind, lapply(topfreq, function(freq) {
+  cbind(cos(2 * pi * freq * time), sin(2 * pi * freq * time))
+}))
+
+combined <- data.frame(hawaii = hawaii$Carbondioxide, time, terms)
+fit <- lm(hawaii ~ ., combined)
+
+time_new <- 385:408
+
+terms_new <- do.call(cbind, lapply(topfreq, function(freq) {
+  cbind(cos(2 * pi * freq * time_new), sin(2 * pi * freq * time_new))
+}))
+
+combined_new <- data.frame(time_new, terms_new)
+colnames(combined_new) <- colnames(combined)[-1]
+
+predictions <- predict.lm(fit, newdata=combined_new, interval="prediction", level=.95)
+
+
+plot(time, hawaii$Carbondioxide[1:length(time)], type="l", xlim=c(0, 410), ylim=c(310, 360))
+lines(time, fit$fitted.values, lty=2, col="red")
+lines(time_new, predictions[, "fit"], col="blue")
+matlines(time_new, predictions[, 2:3], col = "purple", lty=3)
+```
+
+
+
+
+

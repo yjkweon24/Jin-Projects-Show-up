@@ -1,0 +1,121 @@
+---
+title: "pbhlth project (Jin Kweon, Jiyoon Clover Jeong)"
+author: "Jin Kweon"
+date: "10/4/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Download file
+```{r import}
+
+soccer <- read.csv("/Users/cloverjiyoon/2017Fall/PH 245/Project/FullData.csv", header = T)
+
+
+NAidx <- c(0)
+Blidx <- c(0)
+
+# frameNA <- data.frame(0)
+# frameBl <- data.frame(0)
+
+
+
+# Check NA rows
+for(i in 1:ncol(soccer)){
+  cat("names of NA rows of", colnames(soccer)[i], "\n")
+  #NAdix <- rownames(soccer)[is.na(soccer[,i])]
+  #frameNA[, rownames(soccer)[i]]<- NAdix
+  cat(rownames(soccer)[is.na(soccer[,i])], "\n")
+  cat("Number of NA :  ", length(rownames(soccer)[is.na(soccer[,i])]),"\n")
+  print("======================================")
+  cat("names of rows contain missing values ", colnames(soccer)[i], "\n")
+  #Blidx <- rownames(soccer[which(soccer[,i] == ""),])
+  #frameNA[, rownames(soccer)[i]]<- Blidx
+  cat(rownames(soccer[which(soccer[,i] == ""),]), "\n")
+  cat("Number of Missing values :  ", length(rownames(soccer[which(soccer[,i] == ""),])), "\n")
+  print("======================================")
+  
+  
+  
+}
+
+
+
+
+
+
+
+
+
+```
+
+$\\$
+
+$\\$
+
+$\\$
+
+
+# Linear Regression
+
+```{r}
+
+
+predictors <- paste(names(soccer)[18:53], collapse = " + ")
+formula <- as.formula(paste("Rating ~ ", paste(predictors)))
+
+fit <- lm(formula = formula, data = soccer)
+
+
+
+
+summary(fit)
+
+
+```
+
+
+```{r}
+
+
+
+```
+
+
+
+```{r}
+
+
+
+```
+
+
+
+```{r}
+
+
+
+```
+
+
+
+```{r}
+
+
+
+```
+
+
+
+```{r}
+
+
+
+```
+
+
+
+

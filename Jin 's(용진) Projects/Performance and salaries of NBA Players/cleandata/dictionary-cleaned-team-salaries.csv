@@ -1,0 +1,8 @@
+"","name","description","explanation"
+"1","first_quartile_salary","the first quartile of salary","the 25% of salaries for players in each team"
+"2","median_salary","the median of salary","the 50% of salaries for players in each team"
+"3","third_quartile_salary","the third quartile of salary","the 75% of salaries for players in each team"
+"4","average_salary","the average of salary","for each team, add salary of each players and 
+                  divided by number of players in that team"
+"5","interquartile_range","the interquartile range of salary","the third quartile - the first quartile for the salaries
+                  in each team"
