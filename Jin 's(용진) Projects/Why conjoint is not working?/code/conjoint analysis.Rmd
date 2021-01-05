@@ -1,0 +1,281 @@
+---
+title: "conjoint analysis"
+author: "Jin Kweon"
+date: "3/5/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Group
+
+Zotero: https://www.zotero.org/groups/2095516/conjoint_analysis
+
+Github: https://github.com/pbstark/Conjoint 
+
+
+#Reference
+
+https://www.sawtoothsoftware.com/products/advanced-analytical-tools/cbc-lc#technical-paper
+
+http://www.informit.com/articles/article.aspx?p=2350028
+
+https://rpubs.com/haj3/conjoint
+
+http://keii.ue.wroc.pl/pracownicy/tb/Bak_A_and_Bartlomowicz_T_Conjoint_analysis_method_and_its_implementation_in_conjoint_R_package.pdf
+
+https://www.youtube.com/watch?v=PgFhhZhipVc 
+
+https://en.wikipedia.org/wiki/Theory_of_conjoint_measurement
+
+
+###Summary
+
+Conjoint analysis is a popular marketing research technique that marketers use to determine what features a new product should have and how it should be priced.
+
+These three steps--collecting trade-offs, estimating buyer value systems, and making choice
+predictions-- form the basics of conjoint analysis.
+
+
+##Goal:
+
+Our goal is to find why Conjoint analysis does not make sense in real world. Many companies including Sawtooth is trying to sell this nonsense software to public and companies (and they are actually believing this softwares make sense). But, as I can see many examples from Primer document professor Stark made, many rational customers can choose options that do not meet conjoint analysis (conjoint analysis axioms - single and double cancellations & sovability and archimedian axioms). 
+
+For example, let's say Apple has the patent for the new phones that has a new screen that can respond to users' behaviors/finger movements; however, Samsung copies that idea and sell the phones that have the technology. So, Apple tries to sue Samsung. In here, Apple argues to go to the mall and ask randomly chosen 150 (this number is arbitrary) "rational" people whether they are actually going to buy this phone (assume this phone is $100 more expense since it has this new thing) since this phone has the new technology. And, Apple collects many data and runs them on the conjoint software, and argues that Samsung owes 100 for each phone based on this conjoint analysis, which does not make sense.... Why??? because this is more complicated than that... As I the examples from Primer show, rational customers can choose other options that conjoint analysis give out... Also, when customers buy a phone, they do consider more than this single new technology... So, in real world, there are many lawsuits going on whether conjoint analysis is useful or not.
+
+So, anyway, our goal is to argue conjoint analysis is really not working properly... William is trying to fix the software that we believe working similiarly as what Sawtooth (the most famous company that is providing conjoint software) does... 
+
+So, I want to come up with more examples, and prove although axioms hold, rational customers can choose other options than what conjoint analysis software give... And, we are going to run these examples on "conjoint" library in R and William's software, and try to find out whether these results (based on conjoint) will have different answers with my examples (rational people's choice without using conjoint analysis but still satisfy axioms...) (then, it means they are counter examples, and we can say that conjoint analysis is not really a good way...)
+
+##Library
+```{r lib}
+library(cjoint)
+library(bayesm)
+library(stringr)
+
+library(conjoint)
+library(faisalconjoint)
+
+library(support.CEs)  # package for survey construction 
+library(R.utils) #source directory 
+```
+
+
+#Building up the non-conjoint examples with conjoint axioms - "Phone"
+
+Reference: https://en.wikipedia.org/wiki/Theory_of_conjoint_measurement
+
+I am going to build up the codes with the graphical (matrix) representation, so we could always reproduce and generate as many examples as I can. 
+
+Our goal is to generate and reproduce examples that fail single cancellation (independent axiom) and double cancellation.
+
+![Double cancellation](cancellation1.png)
+
+A Luce - Tukey instance of double cancellation, in which the consequent inequality (broken line arrow) does not contradict the direction of both antecedent inequalities (solid line arrows), so supporting the axiom.
+
+![Single cancellation](cancellation2.png)
+
+Graphical representation of the single cancellation axiom. It can be seen that a > b because (a, x) > (b, x), (a, y) > (b, y) and (a, z) > (b, z).
+
+Try to build up 2 by 3 examples (2 attributes and 3 levels/attribute values)
+```{R}
+#Test string random generator
+# myFun <- function(n = 5000) {
+#   a <- do.call(paste0, replicate(5, sample(letters, n, TRUE), FALSE))
+#   paste0(a, sprintf("%04d", sample(999, n, TRUE)), sample(letters, n, TRUE))
+# }
+
+#First example - data elements should have no space....
+data <- matrix(0, 2, 3)
+
+rownames(data) <- c("brand", "color")
+data
+
+data[1,] <- c("samsung", "nokia", "apple")
+data[2,] <- c("yellow", "blue", "red")
+
+
+#Second example - data elements should have no space....
+data2 <- matrix(0, 2, 3)
+rownames(data2) <- c("sandwich type", "condiment")
+
+data2[1, ] <- c("peanutbutter", "turkey", "ham")
+data2[2, ] <- c("mustard", "grapejelly", "cranberrysauce")
+
+
+
+
+
+#Change to the choice conjoint analysis: so ask questions like which one do you prefer peanut butter, grape jelly or turkey, cranberry sauce?
+
+
+#Function for 2 by 3
+conjoining <- function(matrix){
+  print(paste("I am going to ask you to input two pairs of", rownames(matrix)[1], "and", rownames(matrix)[2]))
+  print(paste("Here is the data you have"))
+  print(matrix)
+  
+  #First comparison
+  print(paste("Choose the pair you like better"))
+  ff <- readline(prompt = paste0("What do you like from ", rownames(matrix)[1], ": "))
+  fs <- readline(prompt = paste0("What do you like from", rownames(matrix)[2], ": "))
+  
+  print(paste("Choose the pair you like worse"))
+  sf <- readline(prompt = paste0("What do you not like from", rownames(matrix)[1], ": "))
+  ss <- readline(prompt = paste0("What do you not like from", rownames(matrix)[2], ": "))
+  
+  combine <- c(ff, fs, sf, ss)
+  
+  first_match <- 0
+  second_match <- 0
+  for(i in 1:2){
+    first_match[i] <- match(combine[i], matrix)
+    second_match[i] <- match(combine[2+i], matrix)
+  }
+  
+  #Second comparison
+  print(paste("We are going to do it once again."))  
+  print(paste("Choose the pair you like better"))
+  ff2 <- readline(prompt = paste0("What do you like from", rownames(matrix)[1], ": "))
+  fs2 <- readline(prompt = paste0("What do you like from", rownames(matrix)[2], ": "))
+  
+  print(paste("Choose the pair you like worse"))
+  sf2 <- readline(prompt = paste0("What do you not like from", rownames(matrix)[1], ": "))
+  ss2 <- readline(prompt = paste0("What do you not like from", rownames(matrix)[2], ": "))
+  
+  combine2 <- c(ff2, fs2, sf2, ss2)
+  
+  first_match2 <- 0
+  second_match2 <- 0
+  for(i in 1:2){
+    first_match2[i] <- match(combine2[i], matrix)
+    second_match2[i] <- match(combine2[2+i], matrix)
+  }
+
+  #Find intersections of values
+  exclude1 <- intersect(first_match, second_match2) 
+  exclude2 <- intersect(first_match2, second_match)
+  
+  first_comb <- c(first_match, first_match2)
+  second_comb <- c(second_match, second_match2)
+  
+  rm1 <- match(c(exclude1, exclude2), first_comb) #Match gives an index, not a value.
+  rm2 <- match(c(exclude1, exclude2), second_comb)
+  
+  
+  output1 <- first_comb[-rm1]
+  output2 <- second_comb[-rm2]
+  
+  print(paste0("Thus, ", matrix[output1[1]], " and ", matrix[output1[2]],
+               " is a preferred choice over ",  matrix[output2[2]], " and ", matrix[output2[1]]))
+}
+
+conjoining(data)
+conjoining(data2)
+
+
+
+
+
+
+
+#Same but this is giving you a pair for every question.
+conjoining2 <- function(matrix){
+  print(paste("I am going to ask you to input two pairs of", rownames(matrix)[1], "and", rownames(matrix)[2]))
+  print(paste("Here is the data you have"))
+  print(matrix)
+  
+  
+  option1 <- matrix[1, ]
+  option2 <- matrix[2, ]
+  
+  
+  x <- sample(1:length(option1), 2)
+  y <- sample(1:length(option2), 2)
+  
+  
+  set1 <- paste(option1[x[1]], option2[y[1]])
+  set2 <- paste(option1[x[2]], option2[y[2]])
+  
+  
+  print(paste("Which pair do you prefer? 1: ", set1, "2:", set2))
+  choice1 <- as.numeric(readline(prompt = "Choose between 1 and 2: "))
+  
+  if(choice1 == 1){
+    ff <- strsplit(set1, " ")[[1]][1]
+    fs <- strsplit(set1, " ")[[1]][2]
+    sf <- strsplit(set2, " ")[[1]][1]
+    ss <- strsplit(set2, " ")[[1]][2]
+  }else{
+    ff <- strsplit(set2, " ")[[1]][1]
+    fs <- strsplit(set2, " ")[[1]][2]
+    sf <- strsplit(set1, " ")[[1]][1]
+    ss <- strsplit(set1, " ")[[1]][2]    
+  }
+
+  combine <- c(ff, fs, sf, ss)
+  
+  first_match <- 0
+  second_match <- 0
+  for(i in 1:2){
+    first_match[i] <- match(combine[i], matrix)
+    second_match[i] <- match(combine[2+i], matrix)
+  }
+  
+  
+  x1 <- option1[x[2]]
+  y1 <- option2[-y]
+  x2 <- option1[-x]
+  y2 <- option2[y[1]]
+
+  if(choice1 == 1){
+    ff2 <- x1
+    fs2 <- y1
+    sf2 <- x2
+    ss2 <- y2
+    print(paste("By the conjoint setting, (for convenience) assume we like the set: ", ff2, "and", fs2, "over", sf2, "and", ss2))
+  }else{
+    ff2 <- x2
+    fs2 <- y2
+    sf2 <- x1
+    ss2 <- y1
+    print(paste("By the conjoint setting, (for convenience) assume we like the set: ", sf2, "and", ss2, "over", ff2, "and", fs2))
+  }
+  
+  combine2 <- c(ff2, fs2, sf2, ss2)
+  
+  first_match2 <- 0
+  second_match2 <- 0
+  for(i in 1:2){
+    first_match2[i] <- match(combine2[i], matrix)
+    second_match2[i] <- match(combine2[2+i], matrix)
+  }
+
+  #Find intersections of values
+  exclude1 <- intersect(first_match, second_match2) 
+  exclude2 <- intersect(first_match2, second_match)
+  
+  first_comb <- c(first_match, first_match2)
+  second_comb <- c(second_match, second_match2)
+  
+  rm1 <- match(c(exclude1, exclude2), first_comb) #Match gives an index, not a value.
+  rm2 <- match(c(exclude1, exclude2), second_comb)
+  
+  
+  output1 <- first_comb[-rm1]
+  output2 <- second_comb[-rm2]
+  
+  print(paste0("Thus, ", matrix[output1[1]], " and ", matrix[output1[2]],
+               " is a preferred choice over ",  matrix[output2[2]], " and ", matrix[output2[1]]))
+}
+
+conjoining2(data)
+conjoining2(data2)
+```
+
+
+
+
+

@@ -1,0 +1,178 @@
+\documentclass[12pt]{article}
+
+\bibliographystyle{plainnat}
+\usepackage{graphicx}
+\usepackage{amssymb,amsmath,color}
+\usepackage[breaklinks=true]{hyperref}
+\usepackage[anythingbreaks]{breakurl}
+\usepackage[round]{natbib}
+\usepackage{amsthm}
+\usepackage{indentfirst}
+%\usepackage{algorithm}
+%\usepackage{algorithmicx}
+%\usepackage[noend]{algpseudocode}
+\newtheorem{thm}{Theorem}
+\newtheorem{definition}{Definition}
+
+\newcommand{\beq}{\begin{equation}}
+\newcommand{\eeq}{\end{equation}}
+\newcommand{\ben}{\begin{enumerate}}
+\newcommand{\een}{\end{enumerate}}
+
+\newcommand{\mc}[1]{\ensuremath{\mathcal{#1}}}
+\newcommand{\mb}[1]{\ensuremath{\mathbb{#1}}}
+\newcommand{\ul}[1]{\ensuremath{\underline{#1}}}
+\newcommand{\RM}{\emph{RM}}
+\newcommand{\A}{\emph{A}}
+\newcommand{\B}{\emph{B}}
+\newcommand{\C}{\emph{C}}
+\newcommand{\EE}{\bb{E}}
+\newcommand{\PP}{\bb{P}}
+\newcommand{\bpi}{\bar{\pi}}
+\newcommand{\bp}{\bar{p}}
+
+\newcommand{\comment}[1]{}
+\newcommand{\note}[1]{\textcolor{red}{\sc #1}}
+
+
+
+\title{Conjoint Analysis is Brittle}
+
+\author{
+   Jin Kweon\\
+   William Ma\\
+   Philip B.~Stark
+}
+
+\date{Version: \today}
+
+\begin{document}
+\maketitle
+
+
+\begin{abstract}
+Conjoint analysis, based on Luce and Tukey's Theory of Conjoint Measurement,
+is widely used in marketing and increasingly used in litigation.
+While there has been academic interest in assessing whether, in a given situation,
+the axioms of Conjoint Measurement hold, in applications the axioms
+are generally assumed to hold and not tested.
+We show (i)~there are many situations in which a rational agent's choices would
+not satisfy the axioms, and (ii)~in such situations, applying conjoint analysis
+to choice-based conjoint data can be extremely misleading.
+% We provide Python software to analyze choice-based conjoint surveys.
+\end{abstract}
+
+\section{Introduction}
+
+\subsection{Literature Review}
+Using conjoint measurement, \citet{green_conjoint_1971} created conjoint analysis to get an understanding of the joint effects of independent variables in psychology and marketing. In doing so, conjoint analysis depends on the axioms of conjoint measurement. In this paper, we focus on the ordering axiom and cancellation axiom \citep{luce_simultaneous_1964}. 
+
+
+Since conjoint analysis was introduced, research has focused on 
+survey methods, generative models, and estimation algorithms \citep{green_hybrid_1984, green_conjoint_1990, allenby_using_1995, lenk_hierarchical_1996, moore_cross-validity_1998}. 
+We focus on a choice-based surveys and heirarchial Bayesian models, because of their
+evident popularity \citep{noauthor_cbc/hb_2009, orme_which_2013}. 
+
+While some researchers have noted abuses of conjoint analysis (CA), CA has become a common tool in many disciplines due to its promise to improve survey efficiency and accuracy \citep{cliff_article_1992, louviere_discrete_2010}. In a little over ten years, conjoint analysis was already popular among marketers \citep{cattin_commercial_1982, wittink_commercial_1989}. Conjoint analysis has also spread to the economics of food and political science of citizenship \citep{wilson-jeanselme_competing_2005, darby_decomposing_2008, burnett_consumer_2011, hainmueller_who_2013, hainmueller_causal_2014, hainmueller_validating_2015}.
+
+
+Furthermore, conjoint analysis has started to become a popular method of determining partworths in lawsuits. For instance, conjoint analysis was admitted as evidence in a case against Craft for false advertising \citep{tushnet_court_2017}. Though the Craft case may have only used conjoint analysis due to the nuances of California law, \citet{sidak_using_2016} demonstrated that conjoint analysis is an admissiable survey design as long as it is executed properly. As a result, for conjoint analysis to be admissible, there must be an expert witness who is willing to defend it in court \citep{korczyk_when_2018}. 
+
+
+Although conjoint analysis is accepted by the courts, many have already criticized axiomatic conjoint measurement (ACM), the foundation of conjoint analysis, for a variety of reasons. \citet{cliff_article_1992} has argued that ACM contains too much abstract math and its inablility to produce error bounds for its results. Additionally, \citet{heene_additive_2013} mentions the difficulty of meeting the axioms of ACM, which is what we are demonstrating as one of the dangers of using conjoint analysis.
+
+\subsection{Goal}
+Our goal is to find why Conjoint analysis does not make sense in real world. Many companies including Sawtooth is trying to sell not properly working software to public and companies (and they are actually believing this softwares make sense). But, as many of the examples we would provide later in the paper, many rational customers can choose options that do not meet conjoint analysis (conjoint analysis axioms - single and double cancellations, solvability, and Archimedean axioms). 
+
+
+For example, let's say Apple has the patent for the new phones that has a new screen that can respond to users' behaviors/finger movements; however, Samsung copies that idea and sell the phones that have the technology. So, Apple tries to sue Samsung. In here, Apple argues to go to the mall and ask randomly chosen 150 (this number is arbitrary) "rational" people whether they are actually going to buy this phone (assume this phone costs \$100 more since it has this new thing) since this phone has the new technology. And, Apple collects many data and runs them on the conjoint software, and argues that Samsung owes 100 for each phone based on this conjoint analysis, which does not make sense.... Why? because the algorithm of how rational customers make decisions is more complicated than that... As the examples from Primer show, rational customers can choose other options that conjoint analysis (following axioms) outputs. Also, when customers buy a phone, they do consider more than this single new technology... So, in real world, there are many lawsuits going on whether conjoint analysis is useful or not.
+
+
+So, our goal is to argue conjoint analysis might not be the best decision-making tool.
+
+\section{The Cancellation Axiom and the Double Cancellation Axiom}
+
+\section{Simple Examples Where the Axioms Fail}
+
+\subsection{Sandwiches}
+\begin{tabular}{ |p{3cm}||p{3cm}|p{3cm}|p{3cm}|  }
+ \multicolumn{1}{|c}{\bfseries Attribute} & \multicolumn{3}{c|}{\bfseries Possible attribute values} \\
+ \hline
+ \bfseries Sandwich Type & A: peanut butter & F: turkey & B: ham\\
+ \bfseries Condiment & P: mustard & X: grape jelly & Q: cranberry\\
+ \hline
+\end{tabular}
+
+$\\$
+
+The cancellation axiom then requires the following:
+
+$\\$
+
+\hfill\begin{minipage}{\dimexpr\textwidth-3cm}
+If you like peanut butter and jelly more than you like turkey and cranberry sauce, and you like turkey and mustard better than you like ham and jelly, then you must like peanut butter and mustard more than you like ham and cranberry sauce. 
+\end{minipage}
+
+$\\$
+
+It should be clear that for sandwiches, the cancellation axiom does not hold for everyone. Hence, if you applied conjoint analysis to the sandwich preferences, the results would not be meaningful.
+
+\subsection{Credit Cards}
+\begin{tabular}{ |p{3cm}||p{3cm}|p{3cm}|p{3cm}|  }
+ \multicolumn{1}{|c}{\bfseries Attribute} & \multicolumn{3}{c|}{\bfseries Possible attribute values} \\
+ \hline
+ \bfseries Card Brand & A: Discover & F: VISA & B:  Mastercard\\
+ \bfseries Credit limit & P: \$5,000 & X: \$10,000 & Q: \$3,000\\
+ \hline
+\end{tabular}
+
+$\\$
+
+The cancellation axiom then requires the following:
+
+$\\$
+
+\hfill\begin{minipage}{\dimexpr\textwidth-3cm}
+If you prefer a Discover card with \$10,000 credit limit to a VISA card with a \$3,000 limit, and you prefer VISA card with a \$5,000 credit limit to a Mastercard with \$10,000 credit limit, then you \textit{must} prefer a Discover card with a \$5,000 credit limit to a Mastercard with a \$3,000 credit limit.
+\end{minipage}
+
+$\\$
+
+Again, it should be clear that the cancellation axiom is not true for everyone.
+
+\subsection{Cellphone}
+\begin{tabular}{ |p{3cm}||p{3cm}|p{3cm}|p{3cm}|  }
+ \multicolumn{1}{|c}{\bfseries Attribute} & \multicolumn{3}{c|}{\bfseries Possible attribute values} \\
+ \hline
+ \bfseries Company & A: Nokia & F: Samsung & B:  Apple\\
+ \bfseries Color & P: black & X: grey & Q: silver\\
+ \hline
+\end{tabular}
+
+$\\$
+
+The cancellation axiom then requires the following:
+
+$\\$
+
+\hfill\begin{minipage}{\dimexpr\textwidth-3cm}
+If you prefer a Apple iPhone with the color or grey over Samsung galaxy with the color of silver, and you prefer black Samsung galaxy with grey Nokia, then you \textit{must} prefer black Apple iPhone over silver Nokia. 
+\end{minipage}
+
+$\\$
+
+However, what if you are a guy who is really into Silver Nokia phone? Or, what if Nokia stops producing silver phone, and the demand of it gets higher than before? Again, it should be clear that the cancellation axiom is not true for everyone.
+
+\section{Computational Examples}
+
+\subsection{Simulating CBCA Data}
+
+
+\section{Conclusions}
+
+\appendix
+\section{Implementation Details}
+
+\bibliography{conjoint18}
+
+\end{document}

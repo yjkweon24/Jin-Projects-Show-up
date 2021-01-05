@@ -1,0 +1,8 @@
+"poziomy"
+"1" "650MB"
+"2" "700MB"
+"3" "pudelko"
+"4" "koperta"
+"5" "niebieski"
+"6" "srebrny"
+"7" "zloty"
